@@ -1,148 +1,135 @@
-# Conversion Tracking Practice
+# Conversion Tracking
 
-A React/Vite practice project for learning conversion tracking with Google Tag Manager, GA4, Google Ads-style conversion events, UTM links, consent handling, MongoDB auth, and form-to-email flows.
+### A consent-aware analytics playground for GTM, GA4, campaign attribution, and real conversion flows.
 
-The app is intentionally small, but it behaves like a real tracking playground: users can visit routes, submit forms, register/login, generate campaign links, and send events through `dataLayer` into GTM/GA4.
+[![Project status](https://img.shields.io/badge/status-portfolio_project-2ea44f?style=flat-square)](https://github.com/AlekdSANS/conversion-tracking)
+[![React 19](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![Vite 8](https://img.shields.io/badge/Vite_8-646CFF?style=flat-square&logo=vite&logoColor=white)](https://vite.dev/)
+[![Vitest](https://img.shields.io/badge/tested_with-Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
+[![Vercel](https://img.shields.io/badge/deploys_to-Vercel-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/)
+
+[About](#about) · [Features](#features) · [Analytics flow](#analytics-flow) · [Getting started](#getting-started) · [GTM setup](#gtm-setup) · [Testing](#testing-analytics)
+
+---
+
+## About
+
+Conversion Tracking is a compact React application built to practise analytics implementation in realistic user journeys. Visitors can navigate campaign links, manage analytics consent, submit forms, and register or log in while the application sends structured events through `window.dataLayer`.
+
+The project goes beyond isolated button-click demos. It combines a Vite frontend with Vercel Functions, MongoDB-backed authentication, email delivery, form validation, UTM tooling, and admin-only diagnostics to create an end-to-end tracking sandbox.
 
 ## Features
 
-- GA4/GTM event tracking through `window.dataLayer`
-- Consent banner that blocks custom analytics events until analytics consent is accepted
-- Contact, callback, and newsletter forms
-- Email delivery through Resend API routes
-- MongoDB-backed login/register/logout system
-- Admin-only analytics debug panel
-- Admin-only test helpers for random data and simulated failures
-- UTM link creator with editable channels and custom parameters
-- Country-aware phone validation and formatting with `libphonenumber-js`
-- Email typo/format feedback while typing
-- Vercel-ready API routes and SPA rewrite
+| Area | What is included |
+| --- | --- |
+| **Analytics** | Consent-aware `dataLayer` events, page views, conversion outcomes, and attribution parameters |
+| **Campaigns** | UTM link builder with editable channels, custom parameters, copy, and open actions |
+| **Conversions** | Contact, callback, and newsletter flows with success and error tracking |
+| **Authentication** | MongoDB-backed registration, login, logout, signed sessions, and role-aware UI |
+| **Validation** | Country-aware phone formatting plus live email format and typo feedback |
+| **Email** | Resend-powered form delivery through Vercel API routes |
+| **Diagnostics** | Admin-only event inspector, test events, random form data, and simulated failures |
+| **Privacy** | Explicit analytics consent, persisted preferences, and no personal form data in events |
 
-## Tech Stack
+## Analytics flow
 
-- **React 19** for the frontend UI
-- **Vite** for local development and production builds
-- **React Router** for client-side routes
-- **Node.js** for API route runtime
-- **Vercel Functions** for serverless backend endpoints
-- **MongoDB Atlas** for the database
-- **MongoDB Node.js driver** for database access
-- **Resend** for contact/newsletter/callback email delivery
-- **libphonenumber-js** for country-aware phone formatting and validation
-- **Google Tag Manager** for tag orchestration
-- **GA4** for analytics reporting
-- **Google Ads-style conversions** for conversion event practice
-- **Browser `localStorage`** for consent and campaign parameter persistence
-- **Browser `dataLayer`** for analytics event transport
-- **HTTP-only cookies** for auth sessions
-- **Web Crypto / Node crypto APIs** for password hashing and session signing
-- **Vitest** for unit/integration tests
-- **Testing Library and user-event** for React interaction tests
-- **jsdom** for browser-like test environment
-- **ESLint** for code quality checks
+```mermaid
+flowchart LR
+    A[Visitor action] --> B{Analytics consent?}
+    B -- Not granted --> C[Event withheld]
+    B -- Granted --> D[window.dataLayer]
+    D --> E[Google Tag Manager]
+    E --> F[GA4 event]
+    E --> G[Google Ads conversion]
+```
+
+Custom analytics events are withheld until analytics consent is granted. Once allowed, the application enriches events with available campaign context and pushes them to the data layer for GTM to route.
+
+## Stack
+
+[![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?style=flat-square&logo=javascript&logoColor=black)](https://developer.mozilla.org/docs/Web/JavaScript)
+[![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev/)
+[![React Router](https://img.shields.io/badge/React_Router_7-CA4245?style=flat-square&logo=reactrouter&logoColor=white)](https://reactrouter.com/)
+[![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
+[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Vercel](https://img.shields.io/badge/Vercel_Functions-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/docs/functions)
+[![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square&logo=resend&logoColor=white)](https://resend.com/)
+[![Google Tag Manager](https://img.shields.io/badge/Google_Tag_Manager-246FDB?style=flat-square&logo=googletagmanager&logoColor=white)](https://tagmanager.google.com/)
+[![Google Analytics](https://img.shields.io/badge/Google_Analytics_4-E37400?style=flat-square&logo=googleanalytics&logoColor=white)](https://analytics.google.com/)
+[![Vitest](https://img.shields.io/badge/Vitest-6E9F18?style=flat-square&logo=vitest&logoColor=white)](https://vitest.dev/)
+
+| Layer | Technology |
+| --- | --- |
+| Interface | React 19, React Router, CSS |
+| Development | Vite 8, ESLint |
+| API | Node.js, Vercel Functions |
+| Data and auth | MongoDB Atlas, HTTP-only cookies, Web Crypto / Node crypto APIs |
+| Forms and email | `libphonenumber-js`, Resend |
+| Analytics | Google Tag Manager, GA4, Google Ads-style conversions |
+| Testing | Vitest, Testing Library, user-event, jsdom |
 
 ## Routes
 
-```txt
-/             Home page
-/contact      Contact form
-/callback     Callback request form
-/newsletter   Newsletter signup form
-/utm-builder  UTM link creator
-/login        Login/register system
-/thank-you    Form success page
-/privacy      Privacy/consent information
+| Route | Purpose |
+| --- | --- |
+| `/` | Home and entry point |
+| `/contact` | Contact form |
+| `/callback` | Callback request |
+| `/newsletter` | Newsletter signup |
+| `/utm-builder` | Campaign URL builder |
+| `/login` | Registration and login |
+| `/thank-you` | Form success page |
+| `/privacy` | Consent and privacy information |
+
+## Tracked events
+
+| Journey | Events |
+| --- | --- |
+| Navigation | `page_view`, `thank_you_page_view` |
+| Contact form | `contact_form_start`, `contact_form_submit`, `contact_form_success`, `contact_form_error` |
+| Other conversions | `callback_request`, `newsletter_signup`, `contact_action_click` |
+| Authentication | `login_success`, `login_error`, `register_success`, `register_error`, `logout` |
+| Campaign tools | `utm_builder_copy_link`, `utm_builder_open_link` |
+| Consent and diagnostics | `consent_update`, `debug_test_event` |
+
+Events can include contextual parameters such as `page_path`, `traffic_source`, `utm_source`, `utm_medium`, `utm_campaign`, `utm_term`, `utm_content`, `has_gclid`, `form_name`, `submission_status`, `error_type`, `auth_method`, `account_type`, and `admin_status`.
+
+> [!NOTE]
+> A GA4 page view can appear even when custom event tags are not configured correctly. Every custom action still needs a matching GTM Custom Event trigger and GA4 Event tag.
+
+## Getting started
+
+### Requirements
+
+- A current Node.js release
+- npm
+- MongoDB Atlas credentials for authentication features
+- A Resend API key for email delivery
+
+### Installation
+
+```bash
+git clone https://github.com/AlekdSANS/conversion-tracking.git
+cd conversion-tracking
+npm install
+cp .env.example .env.local
+npm run dev
 ```
 
-## Admin-Only Features
+Open the local address printed by Vite. To reproduce Vercel Function routing locally, run `npx vercel dev` instead of the Vite development server.
 
-The first registered user is created as an admin with `admin_status: 1`. Later users are basic accounts with `admin_status: 0`.
+## Environment
 
-Admin users can access extra practice/testing tools:
+Add these values to `.env.local` for development and to the Vercel project settings for deployment.
 
-- Analytics debug panel
-- `debug_test_event` test button
-- simulated form conversion/error buttons
-- random test data buttons on forms
-- simulated submission failure checkbox
-
-Basic users and public visitors can still use the real site flows, but they do not see the testing controls.
-
-## Analytics Events
-
-The app pushes custom events to `window.dataLayer` after analytics consent is granted.
-
-Main event names:
-
-```txt
-page_view
-contact_form_start
-contact_form_submit
-contact_form_success
-contact_form_error
-callback_request
-newsletter_signup
-thank_you_page_view
-contact_action_click
-login_success
-login_error
-register_success
-register_error
-logout
-utm_builder_copy_link
-utm_builder_open_link
-debug_test_event
-consent_update
-```
-
-Common parameters include:
-
-```txt
-page_path
-traffic_source
-utm_source
-campaign_name
-utm_campaign
-utm_medium
-utm_term
-utm_content
-has_gclid
-form_name
-form_location
-submission_status
-error_type
-auth_method
-account_type
-admin_status
-status
-```
-
-Important: page views can appear in GA4 even when a custom event tag is not configured correctly. For custom actions, create/publish matching GTM Custom Event triggers and GA4 Event tags.
-
-## GTM Setup Notes
-
-The GTM container is loaded in `index.html`.
-
-Current container ID:
-
-```txt
-GTM-N386PQB8
-```
-
-For each custom event:
-
-1. Create a GTM trigger.
-2. Trigger type: `Custom Event`.
-3. Event name must exactly match the app event name, for example `login_success`.
-4. Create a GA4 Event tag using the same event name.
-5. Add any event parameters you want GA4 to receive.
-6. Save and publish the GTM container.
-
-If events work in Tag Assistant but not on the public site, check that the GTM version is published and that GA4 Event tags are not blocked by GTM consent settings.
-
-## Environment Variables
-
-Copy `.env.example` to `.env.local` for local development.
+| Variable | Purpose |
+| --- | --- |
+| `MONGODB_URI` | MongoDB Atlas connection string |
+| `MONGODB_DB` | Database name; defaults to `analytics_practice` |
+| `SESSION_SECRET` | Long random value used to sign authentication sessions |
+| `RESEND_API_KEY` | Resend credential for form emails |
+| `CONTACT_TO_EMAIL` | Recipient for form submissions |
+| `CONTACT_FROM_EMAIL` | Verified sender or Resend test sender |
 
 ```env
 MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster.example.mongodb.net/?retryWrites=true&w=majority
@@ -153,116 +140,59 @@ CONTACT_TO_EMAIL=you@example.com
 CONTACT_FROM_EMAIL=onboarding@resend.dev
 ```
 
-### MongoDB
+Never commit `.env.local`. Resend's test sender generally delivers only to the email associated with the Resend account; use a verified domain for production delivery.
 
-- `MONGODB_URI` connects the API routes to MongoDB.
-- `MONGODB_DB` defaults to `analytics_practice`.
-- First registered user becomes admin with `admin_status: 1`.
-- Later users are basic accounts with `admin_status: 0`.
-- Admin users can see the analytics debug panel and test-only form tools.
+## GTM setup
 
-MongoDB user documents use this shape:
+The GTM loader is configured in `index.html` with container ID `GTM-N386PQB8`.
 
-```js
-{
-  user_id: '...',
-  login: 'alexadmin',
-  name: 'Alex',
-  pass: 'hashed-password',
-  admin_status: 1,
-  createdAt: Date,
-  updatedAt: Date
-}
-```
+For each custom event:
 
-Do not commit `.env.local`.
+1. Create a **Custom Event** trigger in Google Tag Manager.
+2. Set its event name to the exact application event, such as `login_success`.
+3. Create a GA4 Event tag using the same event name.
+4. Add the data-layer variables you want GA4 to receive as event parameters.
+5. Connect the trigger, save the changes, and publish the container.
 
-### Resend
+If an event fires in Tag Assistant but not on the public site, confirm that the container version is published and the GA4 Event tag is not blocked by GTM consent settings.
 
-The form email API uses:
+## Admin diagnostics
 
-```txt
-RESEND_API_KEY
-CONTACT_TO_EMAIL
-CONTACT_FROM_EMAIL
-```
+The first registered user receives `admin_status: 1`; later users receive `admin_status: 0`. Admin accounts can access the analytics debug panel, fire `debug_test_event`, populate forms with test data, and simulate conversion errors. Public visitors and basic users can still complete all real conversion flows.
 
-With Resend's test sender:
+> [!WARNING]
+> Register the intended administrator before opening a new deployment to public signups.
 
-```env
-CONTACT_FROM_EMAIL=onboarding@resend.dev
-```
+## Testing analytics
 
-Resend can usually send only to your Resend account email until you verify a real domain. For production use, verify a domain in Resend and use an address like:
-
-```env
-CONTACT_FROM_EMAIL=Conversion Tracking <hello@yourdomain.com>
-```
-
-## Local Development
-
-Install dependencies:
-
-```bash
-npm install
-```
-
-Run the dev server:
-
-```bash
-npm run dev
-```
-
-For Vercel API route behavior locally, use:
-
-```bash
-npx vercel dev
-```
+1. Open the application and grant analytics consent.
+2. Log in with an admin account and open the analytics debug panel.
+3. Trigger a journey and confirm `pushed_to_data_layer: true`.
+4. In browser DevTools, filter Network requests for `collect`.
+5. Check the GA4 payload for `tid=G-...` and `en=event_name`.
+6. Use GA4 DebugView for Tag Assistant or debug sessions, and GA4 Realtime for ordinary visits.
 
 ## Scripts
 
-```bash
-npm run dev      # start Vite
-npm run build    # production build
-npm run lint     # ESLint
-npm test         # Vitest test suite
-npm run preview  # preview built app
-```
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Vite development server |
+| `npm run build` | Create a production build |
+| `npm run lint` | Run ESLint checks |
+| `npm test` | Run the Vitest suite once |
+| `npm run preview` | Preview the production build locally |
+| `npx vercel dev` | Run the frontend with local Vercel Functions |
 
-## Deployment
+## Deployment and security
 
-This project is deployable on Vercel.
+The repository is configured for Vercel deployment with SPA rewrites and serverless API routes. Add every environment variable in Vercel, allow the deployment to connect through MongoDB Atlas Network Access, and redeploy after changing environment values.
 
-Before deploying:
+- Passwords are salted and hashed before storage.
+- Authentication uses a signed HTTP-only cookie.
+- Personal form data is not included in analytics events.
+- Secrets remain in local or Vercel environment variables.
+- GTM container changes must be published separately from application deployments.
 
-1. Add all environment variables in Vercel Project Settings.
-2. Add `MONGODB_URI`, `MONGODB_DB`, `SESSION_SECRET`, `RESEND_API_KEY`, `CONTACT_TO_EMAIL`, and `CONTACT_FROM_EMAIL`.
-3. Make sure MongoDB Atlas Network Access allows Vercel to connect.
-4. Redeploy after changing environment variables.
-5. Publish the GTM container after adding or editing tags.
+---
 
-## Security Notes
-
-- Passwords are hashed before storage.
-- Auth sessions use an HTTP-only cookie.
-- Personal form data is not pushed into analytics events.
-- `.env.local` is ignored and should stay private.
-- For a public portfolio repo, keep all real secrets in Vercel/local environment variables only.
-
-## Testing Analytics
-
-Useful checks:
-
-1. Open the site and accept analytics consent.
-2. Log in as an admin.
-3. Use the Analytics Debug panel.
-4. Confirm events show `pushed_to_data_layer: true`.
-5. In browser DevTools Network, filter for `collect`.
-6. Check GA4 payloads for:
-
-```txt
-tid=G-...
-en=event_name
-```
-
-GA4 DebugView is mostly for debug/Tag Assistant sessions. For normal visitors, use GA4 Realtime.
+[Repository](https://github.com/AlekdSANS/conversion-tracking) · [More projects by AlekdSANS](https://github.com/AlekdSANS?tab=repositories)
