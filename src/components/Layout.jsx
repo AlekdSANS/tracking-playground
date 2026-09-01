@@ -2,14 +2,14 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import AnalyticsDebugPanel from './AnalyticsDebugPanel'
 import ConsentBanner from './ConsentBanner'
+import PlaygroundConsole from './PlaygroundConsole'
 import Waves from './Waves'
 
 const navItems = [
   { to: '/', label: 'Home' },
-  { to: '/contact', label: 'Contact' },
-  { to: '/callback', label: 'Callback' },
-  { to: '/newsletter', label: 'Newsletter' },
+  { to: '/forms', label: 'Forms Lab' },
   { to: '/utm-builder', label: 'UTM Builder' },
+  { to: '/tag-lab', label: 'GTM + GA4 Lab' },
   { to: '/login', label: 'Login' },
   { to: '/privacy', label: 'Privacy' },
 ]
@@ -68,7 +68,8 @@ function Layout() {
 
       <header className="site-header">
         <a className="site-title" href="/">
-          Tracking Practice
+          <span aria-hidden="true">✦</span>
+          Tracking Playground
         </a>
         <button
           type="button"
@@ -101,6 +102,8 @@ function Layout() {
         </nav>
       </header>
 
+      <PlaygroundConsole />
+
       <main className="page-shell">
         <Outlet context={{ user }} />
       </main>
@@ -119,7 +122,7 @@ function Layout() {
           onClose={() => setShowConsentSettings(false)}
         />
       )}
-      <AnalyticsDebugPanel enabled={user?.admin_status === 1} />
+      <AnalyticsDebugPanel />
     </>
   )
 }

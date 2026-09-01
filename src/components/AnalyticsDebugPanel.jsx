@@ -3,17 +3,12 @@ import { getStoredCampaignParams, getSafeCampaignParams } from '../utils/campaig
 import { getStoredConsent } from '../utils/consent'
 import { trackEvent, trackFormError, trackFormSuccess } from '../utils/analytics'
 
-function AnalyticsDebugPanel({ enabled = false }) {
-  const debugPanelEnabled = enabled
+function AnalyticsDebugPanel() {
   const [events, setEvents] = useState([])
   const [consentState, setConsentState] = useState(getStoredConsent)
   const [campaignParams, setCampaignParams] = useState(getStoredCampaignParams)
 
   useEffect(() => {
-    if (!debugPanelEnabled) {
-      return undefined
-    }
-
     function handleAnalyticsEvent(event) {
       setEvents((currentEvents) => [event.detail, ...currentEvents].slice(0, 20))
       setConsentState(getStoredConsent())
@@ -25,18 +20,14 @@ function AnalyticsDebugPanel({ enabled = false }) {
     return () => {
       window.removeEventListener('analytics:event', handleAnalyticsEvent)
     }
-  }, [debugPanelEnabled])
-
-  if (!debugPanelEnabled) {
-    return null
-  }
+  }, [])
 
   return (
-    <aside className="debug-panel" aria-label="Development analytics debug panel">
+    <aside className="debug-panel" aria-label="Analytics debug console">
       <div className="debug-header">
         <div>
-          <h2>Analytics debug</h2>
-          <p>Visible for admin users.</p>
+          <h2>Analytics debug console</h2>
+          <p>Live playground details for every visitor.</p>
         </div>
         <div className="debug-actions">
           <button type="button" onClick={() => setEvents([])}>

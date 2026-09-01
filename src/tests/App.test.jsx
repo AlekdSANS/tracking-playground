@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, test, vi } from 'vitest'
@@ -6,6 +6,7 @@ import App from '../App'
 import ContactForm from '../components/ContactForm'
 import ConsentBanner from '../components/ConsentBanner'
 import { saveConsent } from '../utils/consent'
+import { isValidGtmContainerId } from '../utils/tagLab'
 
 function renderApp(initialEntries = ['/']) {
   return render(
@@ -194,18 +195,52 @@ test('pushes a page-view event on route change', async () => {
   const user = userEvent.setup()
   renderApp(['/'])
 
-  await user.click(screen.getByRole('link', { name: /contact/i }))
+  await user.click(screen.getByRole('link', { name: /forms lab/i }))
 
   await waitFor(() => {
     expect(window.dataLayer).toEqual(
       expect.arrayContaining([
         expect.objectContaining({
           event: 'page_view',
-          page_path: '/contact',
+          page_path: '/forms',
         }),
       ]),
     )
   })
+})
+
+test('switches between all form experiments on one page', async () => {
+  const user = userEvent.setup()
+  renderApp(['/forms?experiment=callback'])
+
+  expect(screen.getByRole('heading', { name: /request a callback/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /request callback/i })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('tab', { name: /newsletter/i }))
+
+  expect(screen.getByRole('heading', { name: /newsletter signup/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /sign up/i })).toBeInTheDocument()
+})
+
+test('shows a fired event in the playground console', async () => {
+  saveConsent({ necessary: true, analytics: true, advertising: true })
+  const user = userEvent.setup()
+  renderApp(['/'])
+
+  await user.click(screen.getByRole('button', { name: /fire test event/i }))
+
+  await waitFor(() => {
+    expect(window.dataLayer).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          event: 'playground_test_event',
+          trigger: 'console',
+        }),
+      ]),
+    )
+  })
+
+  expect(screen.getAllByText('playground_test_event').length).toBeGreaterThanOrEqual(2)
 })
 
 test('pushes source and campaign UTM values into analytics events', async () => {
@@ -403,30 +438,12 @@ test('classifies restricted auth access for analytics', async () => {
   window.fetch.mockRestore()
 })
 
-test('shows analytics debug only for admin users', async () => {
+test('shows analytics debug for every visitor', async () => {
   renderApp(['/'])
 
   expect(
-    screen.queryByRole('complementary', {
-      name: /development analytics debug panel/i,
-    }),
-  ).not.toBeInTheDocument()
-
-  act(() => {
-    window.dispatchEvent(
-      new CustomEvent('auth:user-changed', {
-        detail: {
-          user_id: 'admin-user',
-          login: 'admin',
-          admin_status: 1,
-        },
-      }),
-    )
-  })
-
-  expect(
     screen.getByRole('complementary', {
-      name: /development analytics debug panel/i,
+      name: /analytics debug console/i,
     }),
   ).toBeInTheDocument()
 })
@@ -452,4 +469,38 @@ test('pushes an analytics event when opening a generated UTM link', async () => 
       }),
     ]),
   )
+})
+
+test('validates GTM container IDs without accepting scripts', () => {
+  expect(isValidGtmContainerId('GTM-ABC1234')).toBe(true)
+  expect(isValidGtmContainerId('  gtm-test99  ')).toBe(true)
+  expect(isValidGtmContainerId('<script>alert(1)</script>')).toBe(false)
+  expect(isValidGtmContainerId('G-ABC1234')).toBe(false)
+})
+
+test('shows the isolated GTM and GA4 lab guide', () => {
+  renderApp(['/tag-lab'])
+
+  expect(
+    screen.getByRole('heading', { name: /gtm \+ ga4 event lab/i }),
+  ).toBeInTheDocument()
+  expect(
+    screen.getByRole('heading', { name: /gtm \+ ga4 field guide/i }),
+  ).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /simulate only/i })).toBeInTheDocument()
+})
+
+test('rejects pasted scripts in the GTM container field', async () => {
+  const user = userEvent.setup()
+  renderApp(['/tag-lab'])
+
+  await user.type(
+    screen.getByLabelText(/gtm container id/i),
+    '<script>alert(1)</script>',
+  )
+  await user.click(screen.getByRole('button', { name: /launch with gtm/i }))
+
+  expect(
+    screen.getByText(/raw tags and scripts are rejected/i),
+  ).toBeInTheDocument()
 })
