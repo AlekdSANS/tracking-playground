@@ -7,6 +7,7 @@ import ContactForm from '../components/ContactForm'
 import ConsentBanner from '../components/ConsentBanner'
 import { saveConsent } from '../utils/consent'
 import { isValidGtmContainerId } from '../utils/tagLab'
+import { readWorkspaceContainerId, validateWorkspaceFile } from '../utils/tagWorkspace'
 
 function renderApp(initialEntries = ['/']) {
   return render(
@@ -505,28 +506,33 @@ test('shows the isolated GTM and GA4 lab guide', () => {
   renderApp(['/tag-lab'])
 
   expect(
-    screen.getByRole('heading', { name: /gtm \+ ga4 event lab/i }),
+    screen.getByRole('heading', { name: /gtm \+ ga4 workspace launcher/i }),
   ).toBeInTheDocument()
   expect(
-    screen.getByRole('heading', { name: /gtm \+ ga4 field guide/i }),
+    screen.getByRole('heading', { name: /secure workspace field guide/i }),
   ).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /launch with gtm/i })).toBeDisabled()
-  expect(screen.queryByRole('button', { name: /simulate only/i })).not.toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /open secure workspace/i })).toBeDisabled()
+  expect(screen.getByText(/held until the boundary is proven/i)).toBeInTheDocument()
 })
 
-test('unlocks the sandbox only for a valid GTM container ID', async () => {
+test('opens the offline workspace only for a valid GTM container ID', async () => {
   const user = userEvent.setup()
+  const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
   renderApp(['/tag-lab'])
 
-  const launchButton = screen.getByRole('button', { name: /launch with gtm/i })
+  const launchButton = screen.getByRole('button', { name: /open secure workspace/i })
   expect(launchButton).toBeDisabled()
-  expect(screen.queryByTitle(/isolated gtm datalayer runtime/i)).not.toBeInTheDocument()
 
   await user.type(screen.getByLabelText(/gtm container id/i), 'GTM-TEST99')
 
   expect(launchButton).toBeEnabled()
   await user.click(launchButton)
-  expect(screen.getByTitle(/isolated gtm datalayer runtime/i)).toBeInTheDocument()
+  expect(openSpy).toHaveBeenCalledWith(
+    '/tag-workspace#container=GTM-TEST99',
+    'tag-workspace',
+    'popup,noopener,noreferrer',
+  )
+  openSpy.mockRestore()
 })
 
 test('rejects pasted scripts in the GTM container field', async () => {
@@ -537,9 +543,43 @@ test('rejects pasted scripts in the GTM container field', async () => {
     screen.getByLabelText(/gtm container id/i),
     '<script>alert(1)</script>',
   )
-  await user.click(screen.getByRole('button', { name: /launch with gtm/i }))
 
+  expect(screen.getByRole('button', { name: /open secure workspace/i })).toBeDisabled()
   expect(
     screen.getByText(/raw tags and scripts are rejected/i),
   ).toBeInTheDocument()
+})
+
+test('validates workspace files and flags unsafe data', () => {
+  const validEvent = validateWorkspaceFile(
+    'events/demo.json',
+    '{"event":"demo_event","debug_mode":true}',
+  )
+  expect(validEvent.valid).toBe(true)
+
+  const dangerous = validateWorkspaceFile(
+    'events/demo.json',
+    '{"event":"demo_event","__proto__":{"polluted":true}}',
+  )
+  expect(dangerous.valid).toBe(false)
+  expect(dangerous.errors.join(' ')).toMatch(/blocked key/i)
+
+  const personal = validateWorkspaceFile(
+    'events/demo.json',
+    '{"event":"demo_event","email":"person@example.com"}',
+  )
+  expect(personal.valid).toBe(true)
+  expect(personal.warnings.join(' ')).toMatch(/personal|secret/i)
+  expect(readWorkspaceContainerId('#container=gtm-test99')).toBe('GTM-TEST99')
+  expect(readWorkspaceContainerId('#container=%3Cscript%3E')).toBe('')
+})
+
+test('renders the workspace without the site shell or tracking console', () => {
+  renderApp(['/tag-workspace#container=GTM-TEST99'])
+
+  expect(screen.getByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
+  expect(screen.getByRole('complementary', { name: /virtual project files/i })).toBeInTheDocument()
+  expect(screen.getAllByText(/live gtm locked/i)).toHaveLength(2)
+  expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
+  expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
 })
