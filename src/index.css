@@ -3269,6 +3269,8 @@ pre {
 .workspace-header p { color: #a8abb5; font: 700 11px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .1em; }
 .workspace-header h1 { margin-top: 5px; font-size: clamp(22px, 3vw, 32px); }
 .workspace-header > div:last-child { display: flex; align-items: center; gap: 12px; }
+.workspace-session-state { display: inline-flex; align-items: center; gap: 7px; color: #b8bbc5; font: 700 11px ui-monospace, monospace; }
+.workspace-session-state i { width: 7px; height: 7px; border-radius: 50%; background: #b7ff65; box-shadow: 0 0 0 4px rgba(183, 255, 101, .08); }
 .workspace-header a, .tag-workspace-locked a { color: #f3f4f8; text-decoration: none; border: 1px solid #444753; border-radius: 10px; padding: 10px 14px; font-weight: 700; }
 .workspace-lock-badge { color: #16180f; background: #b7ff65; border-radius: 999px; padding: 7px 11px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .workspace-security-strip { display: flex; gap: 22px; flex-wrap: wrap; padding: 10px 28px; color: #aaadb8; background: #181a20; border-bottom: 1px solid #30323a; font-size: 12px; }
@@ -3278,22 +3280,56 @@ pre {
 .workspace-files, .workspace-editor, .workspace-guide { border-right: 1px solid #30323a; }
 .workspace-files, .workspace-guide { padding: 16px; background: #15161b; }
 .workspace-panel-title { display: flex; justify-content: space-between; align-items: center; min-height: 38px; color: #b7bac3; font: 700 12px ui-monospace, monospace; }
+.workspace-panel-title > span { display: flex; align-items: center; gap: 8px; text-transform: uppercase; letter-spacing: .08em; }
+.workspace-panel-title small { color: #777b86; font-size: 10px; }
 .workspace-panel-title div { display: flex; gap: 7px; }
 .workspace-panel-title button, .workspace-footer button { color: #dfe1e8; background: #22242b; border: 1px solid #3b3e48; border-radius: 8px; padding: 7px 9px; }
-.workspace-file-list { display: grid; gap: 3px; margin: 10px 0 18px; }
-.workspace-file-list button { overflow: hidden; padding: 9px 10px; border: 0; border-radius: 8px; color: #afb2bd; background: transparent; text-align: left; text-overflow: ellipsis; }
+.workspace-new-file { display: grid; gap: 8px; margin: 8px 0 14px; padding: 11px; border: 1px solid #393c46; border-radius: 10px; background: #1c1e24; }
+.workspace-new-file label { color: #aeb1bb; font-size: 11px; font-weight: 800; }
+.workspace-new-file input { width: 100%; padding: 8px 9px; border: 1px solid #454955; border-radius: 7px; color: #fff; background: #111217; font: 11px ui-monospace, monospace; }
+.workspace-new-file div { display: flex; gap: 6px; }
+.workspace-new-file button { padding: 6px 8px; border: 1px solid #424650; border-radius: 6px; color: #dfe2e9; background: #292c34; font-size: 11px; }
+.workspace-new-file button[type="submit"] { color: #16180f; border-color: #b7ff65; background: #b7ff65; font-weight: 900; }
+.workspace-file-list { display: grid; gap: 12px; margin: 10px 0 18px; }
+.workspace-file-list section { display: grid; gap: 2px; }
+.workspace-file-list h2 { display: flex; gap: 7px; align-items: center; margin: 0 0 3px; padding: 4px 7px; color: #777b86; font: 800 10px ui-monospace, monospace; text-transform: uppercase; letter-spacing: .08em; }
+.workspace-file-list button { display: grid; grid-template-columns: 25px minmax(0, 1fr) auto; align-items: center; overflow: hidden; padding: 8px 9px; border: 0; border-radius: 8px; color: #afb2bd; background: transparent; text-align: left; }
+.workspace-file-list button > span:first-child { color: #9b8cff; font: 800 10px ui-monospace, monospace; }
+.workspace-file-list button > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.workspace-file-list button i { color: #b7ff65; font-style: normal; font-size: 8px; }
 .workspace-file-list button:hover, .workspace-file-list button.is-active { color: #fff; background: #292c35; }
 .workspace-import { display: block; padding: 10px; border: 1px dashed #454854; border-radius: 9px; color: #b7ff65; text-align: center; cursor: pointer; font-size: 12px; font-weight: 800; }
 .workspace-import input { position: absolute; opacity: 0; pointer-events: none; }
-.workspace-editor { display: grid; grid-template-rows: auto minmax(320px, 1fr) auto; padding: 12px 14px; background: #101116; }
-.workspace-editor textarea { width: 100%; min-height: 390px; resize: vertical; padding: 18px; border: 1px solid #2f323b; border-radius: 10px; color: #e9eaff; background: #0b0c10; font: 14px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; }
+.workspace-memory-note { margin: 14px 2px 0; color: #777b86; font-size: 11px; line-height: 1.45; }
+.workspace-editor { display: grid; grid-template-rows: auto minmax(320px, 1fr) auto auto; padding: 0; background: #101116; }
+.workspace-editor-toolbar { display: flex; justify-content: space-between; align-items: center; gap: 12px; min-height: 50px; padding: 7px 10px; border-bottom: 1px solid #30323a; background: #17181e; }
+.workspace-editor-toolbar > div:last-child { display: flex; gap: 5px; flex-wrap: wrap; justify-content: flex-end; }
+.workspace-editor-toolbar button { padding: 7px 9px; border: 1px solid #3c3f49; border-radius: 7px; color: #c6c9d1; background: #22242b; font-size: 11px; }
+.workspace-editor-toolbar button:hover:not(:disabled) { color: #fff; border-color: #626674; }
+.workspace-editor-toolbar button:disabled { opacity: .35; }
+.workspace-editor-toolbar button.is-danger:hover { color: #ffada6; border-color: #7a403e; }
+.workspace-file-tab { display: inline-flex; align-items: center; gap: 8px; padding: 6px 9px; border-radius: 7px; color: #f0f1f5; background: #292c34; font: 700 11px ui-monospace, monospace; }
+.workspace-file-tab i { color: #9b8cff; font-style: normal; }
+.workspace-file-tab b { color: #b7ff65; font-size: 8px; }
+.workspace-code-shell { display: grid; grid-template-columns: 46px minmax(0, 1fr); min-height: 390px; background: #0b0c10; }
+.workspace-line-numbers { overflow: hidden; padding: 18px 10px; border-right: 1px solid #24262d; color: #5e626d; font: 14px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; text-align: right; user-select: none; }
+.workspace-line-numbers span { display: block; }
+.workspace-editor textarea { width: 100%; min-height: 390px; resize: vertical; padding: 18px; border: 0; border-radius: 0; outline: 0; color: #e9eaff; background: #0b0c10; font: 14px/1.65 ui-monospace, SFMono-Regular, Consolas, monospace; white-space: pre; overflow: auto; tab-size: 2; }
+.workspace-editor textarea:focus { box-shadow: inset 0 0 0 1px #56506e; }
+.workspace-editor-status { display: flex; justify-content: flex-end; gap: 14px; padding: 7px 12px; border-top: 1px solid #24262d; color: #7f838e; background: #131419; font: 10px ui-monospace, monospace; }
+.workspace-editor-status .is-valid { color: #b7ff65; }
+.workspace-editor-status .is-invalid { color: #ff8b82; }
 .workspace-validation { display: grid; gap: 4px; margin-top: 10px; padding: 11px 13px; border-radius: 9px; color: #bfc2cb; background: #1b1d23; font-size: 12px; }
+.workspace-editor > .workspace-validation { margin: 0; border-top: 1px solid #30323a; border-radius: 0; }
 .workspace-validation.is-valid strong { color: #b7ff65; }
 .workspace-validation.is-invalid strong { color: #ff8b82; }
 .workspace-validation .is-warning { color: #ffd47d; }
 .workspace-guide h2 { margin: 8px 0 18px; font-size: 19px; }
 .workspace-guide ol { padding-left: 20px; color: #c0c3cc; line-height: 1.55; }
 .workspace-guide li + li { margin-top: 10px; }
+.workspace-shortcuts { display: grid; gap: 9px; margin-top: 24px; padding-top: 18px; border-top: 1px solid #30323a; color: #9da1ab; font-size: 11px; }
+.workspace-shortcuts strong { color: #d8dae0; }
+.workspace-shortcuts kbd { padding: 2px 5px; border: 1px solid #424650; border-bottom-width: 2px; border-radius: 4px; color: #d7d9e0; background: #24262d; font: 10px ui-monospace, monospace; }
 .workspace-live-lock { margin-top: 26px; padding: 15px; border: 1px solid #4b4633; border-radius: 12px; background: #242116; }
 .workspace-live-lock strong { color: #ffdc73; }
 .workspace-live-lock p { margin: 7px 0 0; color: #bbb6a6; font-size: 13px; line-height: 1.5; }

@@ -3,6 +3,9 @@ import { useLocation } from 'react-router-dom'
 import {
   WORKSPACE_MAX_FILES,
   createStarterWorkspace,
+  createWorkspaceFileContent,
+  formatWorkspaceJson,
+  groupWorkspaceFiles,
   isValidWorkspaceFileName,
   readWorkspaceContainerId,
   validateWorkspaceFile,
@@ -11,26 +14,49 @@ import {
 const CORE_FILES = new Set(['README.md', 'container.json'])
 const RUNNER_DOCUMENT = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"><style>body{margin:0;background:#101116;color:#eef0f5;font:12px ui-monospace,monospace}.box{margin:10px;padding:14px;border:1px solid #343741;border-radius:10px}.dot{color:#b6ff67}</style></head><body><div class="box"><span class="dot">●</span> Isolated runtime ready · network disabled</div><script>(()=>{let port;addEventListener('message',e=>{if(e.data?.type!=='workspace:connect'||!e.ports[0])return;port=e.ports[0];port.onmessage=m=>{if(m.data?.type!=='workspace:run')return;const payload=m.data.payload;if(!payload||typeof payload!=='object'||typeof payload.event!=='string')return;self.dataLayer=self.dataLayer||[];self.dataLayer.push(payload);port.postMessage({type:'workspace:result',nonce:m.data.nonce,payload,count:self.dataLayer.length})};port.start();port.postMessage({type:'workspace:ready',nonce:e.data.nonce})},{once:true})})()</script></body></html>`
 
-const guideForFile = (name) => {
-  if (name.startsWith('events/')) return ['Keep the event name GA4-compatible.', 'Use synthetic values only.', 'Validate, then run the event offline.']
+function guideForFile(name) {
+  if (name.startsWith('events/')) return ['Keep the event name GA4-compatible.', 'Use synthetic values only.', 'Format and validate before running it.']
   if (name === 'container.json') return ['This is a safe practice model, not a GTM import.', 'The public ID labels your workspace.', 'Live container loading remains locked.']
   if (name.startsWith('tests/')) return ['List the events you expect.', 'Compare them with runner output.', 'No file leaves this browser window.']
   return ['Choose an event file to simulate it.', 'Create JSON or Markdown files only.', 'Download anything you want to keep.']
 }
 
+function makeCopyName(fileName, files) {
+  const dot = fileName.lastIndexOf('.')
+  const base = fileName.slice(0, dot)
+  const extension = fileName.slice(dot)
+  let index = 1
+  let candidate = `${base}.copy${extension}`
+  while (files[candidate]) {
+    index += 1
+    candidate = `${base}.copy-${index}${extension}`
+  }
+  return candidate
+}
+
 function TagWorkspacePage() {
   const location = useLocation()
   const containerId = readWorkspaceContainerId(location.hash)
+  const starterFiles = useMemo(() => containerId ? createStarterWorkspace(containerId) : {}, [containerId])
   const iframeRef = useRef(null)
+  const editorRef = useRef(null)
+  const lineNumbersRef = useRef(null)
   const runnerPortRef = useRef(null)
   const nonceRef = useRef(`workspace-runner:${containerId}`)
-  const [files, setFiles] = useState(() => containerId ? createStarterWorkspace(containerId) : {})
+  const [files, setFiles] = useState(() => starterFiles)
   const [selectedFile, setSelectedFile] = useState('events/page_view.json')
+  const [newFileName, setNewFileName] = useState('')
+  const [isCreatingFile, setIsCreatingFile] = useState(false)
+  const [cursor, setCursor] = useState({ line: 1, column: 1 })
   const [runnerReady, setRunnerReady] = useState(false)
   const [output, setOutput] = useState([])
   const [notice, setNotice] = useState('')
+
   const content = files[selectedFile] || ''
   const validation = useMemo(() => selectedFile ? validateWorkspaceFile(selectedFile, content) : { valid: false, errors: [], warnings: [] }, [content, selectedFile])
+  const groupedFiles = useMemo(() => groupWorkspaceFiles(Object.keys(files)), [files])
+  const modifiedFiles = useMemo(() => new Set(Object.keys(files).filter((name) => starterFiles[name] !== files[name])), [files, starterFiles])
+  const byteSize = useMemo(() => new Blob([content]).size, [content])
 
   useEffect(() => () => runnerPortRef.current?.close(), [])
 
@@ -40,24 +66,29 @@ function TagWorkspacePage() {
     channel.port1.onmessage = (event) => {
       if (event.data?.nonce !== nonceRef.current) return
       if (event.data.type === 'workspace:ready') setRunnerReady(true)
-      if (event.data.type === 'workspace:result') {
-        setOutput((items) => [{ payload: event.data.payload, count: event.data.count }, ...items].slice(0, 20))
-      }
+      if (event.data.type === 'workspace:result') setOutput((items) => [{ payload: event.data.payload, count: event.data.count }, ...items].slice(0, 20))
     }
     channel.port1.start()
     runnerPortRef.current = channel.port1
     iframeRef.current.contentWindow.postMessage({ type: 'workspace:connect', nonce: nonceRef.current }, '*', [channel.port2])
   }
 
-  function createFile() {
-    if (Object.keys(files).length >= WORKSPACE_MAX_FILES) return setNotice('The workspace is limited to 40 files.')
-    const requested = window.prompt('New file name (.json or .md)', 'events/custom_event.json')
-    if (!requested) return
-    const name = requested.trim()
-    if (!isValidWorkspaceFileName(name) || files[name]) return setNotice('Use a unique, safe .json or .md file name.')
-    const next = name.endsWith('.json') ? '{\n  "event": "custom_event",\n  "debug_mode": true\n}' : '# Practice notes\n'
-    setFiles((current) => ({ ...current, [name]: next }))
+  function selectFile(name) {
     setSelectedFile(name)
+    setCursor({ line: 1, column: 1 })
+    setNotice('')
+  }
+
+  function createFile(event) {
+    event.preventDefault()
+    const name = newFileName.trim()
+    if (Object.keys(files).length >= WORKSPACE_MAX_FILES) return setNotice('The workspace is limited to 40 files.')
+    if (!isValidWorkspaceFileName(name)) return setNotice('Use a safe path ending in .json or .md, such as events/signup.json.')
+    if (files[name]) return setNotice('That file already exists.')
+    setFiles((current) => ({ ...current, [name]: createWorkspaceFileContent(name) }))
+    setSelectedFile(name)
+    setNewFileName('')
+    setIsCreatingFile(false)
     setNotice(`${name} created in memory.`)
   }
 
@@ -68,8 +99,54 @@ function TagWorkspacePage() {
     if (Object.keys(files).length >= WORKSPACE_MAX_FILES && !files[file.name]) return setNotice('The workspace is limited to 40 files.')
     const imported = await file.text()
     setFiles((current) => ({ ...current, [file.name]: imported }))
-    setSelectedFile(file.name)
+    selectFile(file.name)
     setNotice(`${file.name} imported locally.`)
+  }
+
+  function updateCursor(target = editorRef.current) {
+    if (!target) return
+    const beforeCursor = target.value.slice(0, target.selectionStart)
+    const lines = beforeCursor.split('\n')
+    setCursor({ line: lines.length, column: lines.at(-1).length + 1 })
+  }
+
+  function handleEditorKeyDown(event) {
+    if (event.key === 'Tab') {
+      event.preventDefault()
+      const { selectionStart, selectionEnd, value } = event.currentTarget
+      const next = `${value.slice(0, selectionStart)}  ${value.slice(selectionEnd)}`
+      setFiles((current) => ({ ...current, [selectedFile]: next }))
+      requestAnimationFrame(() => {
+        editorRef.current?.setSelectionRange(selectionStart + 2, selectionStart + 2)
+        updateCursor()
+      })
+    }
+    if ((event.ctrlKey || event.metaKey) && event.shiftKey && event.key.toLowerCase() === 'f') {
+      event.preventDefault()
+      formatJson()
+    }
+  }
+
+  function formatJson() {
+    if (!selectedFile.endsWith('.json')) return
+    const formatted = formatWorkspaceJson(content)
+    if (formatted.error) return setNotice(formatted.error)
+    setFiles((current) => ({ ...current, [selectedFile]: formatted.content }))
+    setNotice(`${selectedFile} formatted.`)
+  }
+
+  async function copyContent() {
+    if (!navigator.clipboard?.writeText) return setNotice('Clipboard access is unavailable. Select the editor text to copy it.')
+    await navigator.clipboard.writeText(content)
+    setNotice(`${selectedFile} copied.`)
+  }
+
+  function duplicateFile() {
+    if (Object.keys(files).length >= WORKSPACE_MAX_FILES) return setNotice('The workspace is limited to 40 files.')
+    const name = makeCopyName(selectedFile, files)
+    setFiles((current) => ({ ...current, [name]: content }))
+    selectFile(name)
+    setNotice(`${name} created.`)
   }
 
   function downloadFile() {
@@ -79,6 +156,14 @@ function TagWorkspacePage() {
     link.download = selectedFile.split('/').pop()
     link.click()
     URL.revokeObjectURL(url)
+  }
+
+  function deleteFile() {
+    const next = { ...files }
+    delete next[selectedFile]
+    setFiles(next)
+    selectFile('README.md')
+    setNotice('File removed from this in-memory session.')
   }
 
   function runEvent() {
@@ -93,26 +178,30 @@ function TagWorkspacePage() {
 
   return (
     <main className="tag-workspace-page">
-      <header className="workspace-header"><div><p>Offline simulation · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-lock-badge">Live GTM locked</span><a href="/tag-lab">Exit workspace</a></div></header>
+      <header className="workspace-header"><div><p>Offline simulation · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM locked</span><a href="/tag-lab">Exit workspace</a></div></header>
       <div className="workspace-security-strip"><strong>Network-disabled runner</strong><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div>
+
       <div className="workspace-grid">
         <aside className="workspace-files" aria-label="Virtual project files">
-          <div className="workspace-panel-title"><span>Files</span><button type="button" onClick={createFile}>＋</button></div>
-          <div className="workspace-file-list">{Object.keys(files).map((name) => <button className={name === selectedFile ? 'is-active' : ''} type="button" onClick={() => setSelectedFile(name)} key={name}>{name}</button>)}</div>
-          <label className="workspace-import">Import file<input type="file" accept=".json,.md,application/json,text/markdown" onChange={importFile} /></label>
+          <div className="workspace-panel-title"><span>Workspace <small>{Object.keys(files).length}/{WORKSPACE_MAX_FILES}</small></span><button type="button" aria-label="Create new file" onClick={() => setIsCreatingFile((open) => !open)}>＋</button></div>
+          {isCreatingFile && <form className="workspace-new-file" onSubmit={createFile}><label htmlFor="workspace-file-name">New file path</label><input id="workspace-file-name" value={newFileName} onChange={(event) => setNewFileName(event.target.value)} placeholder="events/signup.json" autoFocus /><div><button type="submit">Create</button><button type="button" onClick={() => { setIsCreatingFile(false); setNewFileName('') }}>Cancel</button></div></form>}
+          <div className="workspace-file-list">{groupedFiles.map((group) => <section key={group.folder}><h2><span aria-hidden="true">⌄</span>{group.folder}</h2>{group.files.map((file) => <button className={file.name === selectedFile ? 'is-active' : ''} type="button" onClick={() => selectFile(file.name)} key={file.name}><span aria-hidden="true">{file.name.endsWith('.json') ? '{ }' : 'M↓'}</span><span>{file.label}</span>{modifiedFiles.has(file.name) && <i aria-label="Modified">●</i>}</button>)}</section>)}</div>
+          <label className="workspace-import">Import JSON or Markdown<input type="file" accept=".json,.md,application/json,text/markdown" onChange={importFile} /></label>
+          <p className="workspace-memory-note">Files exist only in this window. Download them before closing.</p>
         </aside>
 
         <section className="workspace-editor" aria-label="File editor">
-          <div className="workspace-panel-title"><span>{selectedFile}</span><div><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button type="button" onClick={() => { const next = { ...files }; delete next[selectedFile]; setFiles(next); setSelectedFile('README.md') }}>Delete</button>}</div></div>
-          <textarea aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => setFiles((current) => ({ ...current, [selectedFile]: event.target.value }))} spellCheck="false" />
-          <div className={`workspace-validation ${validation.valid ? 'is-valid' : 'is-invalid'}`}><strong>{validation.valid ? 'Valid file' : 'Needs attention'}</strong>{validation.errors.map((item) => <span key={item}>{item}</span>)}{validation.warnings.map((item) => <span className="is-warning" key={item}>{item}</span>)}</div>
+          <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
+          <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
+          <div className="workspace-editor-status"><span className={validation.valid ? 'is-valid' : 'is-invalid'}>{validation.valid ? '● Valid' : '● Invalid'}</span><span>{selectedFile.endsWith('.json') ? 'JSON' : 'Markdown'}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>{content.length.toLocaleString()} chars</span><span>{byteSize.toLocaleString()} bytes</span></div>
+          <div className={`workspace-validation ${validation.valid ? 'is-valid' : 'is-invalid'}`}><strong>{validation.valid ? validation.warnings.length ? 'Valid with safety warnings' : 'Ready' : 'Needs attention'}</strong>{validation.errors.map((item) => <span key={item}>{item}</span>)}{validation.warnings.map((item) => <span className="is-warning" key={item}>{item}</span>)}{validation.valid && !validation.warnings.length && <span>No structural or sensitive-data issues detected.</span>}</div>
         </section>
 
-        <aside className="workspace-guide"><p className="eyebrow">Context guide</p><h2>Working with {selectedFile.split('/').pop()}</h2><ol>{guideForFile(selectedFile).map((item) => <li key={item}>{item}</li>)}</ol><div className="workspace-live-lock"><strong>Why is Live GTM locked?</strong><p>The file model and isolated runner must prove their limits first. A future phase can add a separately consented network mode.</p></div></aside>
+        <aside className="workspace-guide"><p className="eyebrow">Context guide</p><h2>Working with {selectedFile.split('/').pop()}</h2><ol>{guideForFile(selectedFile).map((item) => <li key={item}>{item}</li>)}</ol><div className="workspace-shortcuts"><strong>Editor shortcuts</strong><span><kbd>Tab</kbd> Insert two spaces</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> Format JSON</span></div><div className="workspace-live-lock"><strong>Why is Live GTM locked?</strong><p>The virtual file model and isolated runner must prove their limits first. A future phase can add a separately consented network mode.</p></div></aside>
 
-        <section className="workspace-runner"><div><p className="eyebrow">Isolated runner</p><h2>Offline dataLayer simulator</h2><p>{notice || 'Choose a valid event file. Warnings must be resolved before it can run.'}</p><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.valid || validation.warnings.length > 0 || !runnerReady}>Run selected event</button></div><iframe ref={iframeRef} title="Network-disabled dataLayer runtime" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={RUNNER_DOCUMENT} onLoad={connectRunner} /><div className="workspace-output"><strong>Runner output</strong>{output.length ? output.map((item, index) => <pre key={`${item.count}-${index}`}>{JSON.stringify(item.payload, null, 2)}</pre>) : <span>No events run yet.</span>}</div></section>
+        <section className="workspace-runner"><div><p className="eyebrow">Isolated runner</p><h2>Offline dataLayer simulator</h2><p aria-live="polite">{notice || 'Choose a valid event file. Warnings must be resolved before it can run.'}</p><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.valid || validation.warnings.length > 0 || !runnerReady}>Run selected event</button></div><iframe ref={iframeRef} title="Network-disabled dataLayer runtime" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={RUNNER_DOCUMENT} onLoad={connectRunner} /><div className="workspace-output"><strong>Runner output</strong>{output.length ? output.map((item, index) => <pre key={`${item.count}-${index}`}>{JSON.stringify(item.payload, null, 2)}</pre>) : <span>No events run yet.</span>}</div></section>
       </div>
-      <footer className="workspace-footer"><button type="button" onClick={() => { setFiles(createStarterWorkspace(containerId)); setSelectedFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
+      <footer className="workspace-footer"><button type="button" onClick={() => { setFiles(starterFiles); selectFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
   )
 }

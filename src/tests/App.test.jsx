@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { expect, test, vi } from 'vitest'
@@ -7,7 +7,12 @@ import ContactForm from '../components/ContactForm'
 import ConsentBanner from '../components/ConsentBanner'
 import { saveConsent } from '../utils/consent'
 import { isValidGtmContainerId } from '../utils/tagLab'
-import { readWorkspaceContainerId, validateWorkspaceFile } from '../utils/tagWorkspace'
+import {
+  formatWorkspaceJson,
+  groupWorkspaceFiles,
+  readWorkspaceContainerId,
+  validateWorkspaceFile,
+} from '../utils/tagWorkspace'
 
 function renderApp(initialEntries = ['/']) {
   return render(
@@ -582,4 +587,29 @@ test('renders the workspace without the site shell or tracking console', () => {
   expect(screen.getAllByText(/live gtm locked/i)).toHaveLength(2)
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
+})
+
+test('groups virtual files and formats JSON safely', () => {
+  expect(groupWorkspaceFiles(['events/lead.json', 'README.md'])).toEqual([
+    { folder: 'Project', files: [{ name: 'README.md', label: 'README.md' }] },
+    { folder: 'events', files: [{ name: 'events/lead.json', label: 'lead.json' }] },
+  ])
+  expect(formatWorkspaceJson('{"event":"lead"}').content).toBe('{\n  "event": "lead"\n}\n')
+  expect(formatWorkspaceJson('{"event":}').error).toMatch(/invalid json|valid json/i)
+})
+
+test('creates and edits a virtual event file in memory', async () => {
+  const user = userEvent.setup()
+  renderApp(['/tag-workspace#container=GTM-TEST99'])
+
+  await user.click(screen.getByRole('button', { name: /create new file/i }))
+  await user.type(screen.getByLabelText(/new file path/i), 'events/signup.json')
+  await user.click(screen.getByRole('button', { name: /^create$/i }))
+
+  const editor = screen.getByRole('textbox', { name: /edit events\/signup.json/i })
+  expect(editor.value).toContain('custom_event')
+  fireEvent.change(editor, { target: { value: '{"event":"sign_up","debug_mode":true}' } })
+  await user.click(screen.getByRole('button', { name: /^format$/i }))
+  expect(editor.value).toContain('\n  "event": "sign_up"')
+  expect(screen.getByText(/1 changed/i)).toBeInTheDocument()
 })

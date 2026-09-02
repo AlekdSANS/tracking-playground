@@ -30,6 +30,43 @@ export function createStarterWorkspace(containerId) {
   }
 }
 
+export function createWorkspaceFileContent(fileName) {
+  if (fileName.endsWith('.md')) return '# Practice notes\n\n'
+  if (fileName.startsWith('events/')) {
+    return JSON.stringify({ event: 'custom_event', debug_mode: true }, null, 2)
+  }
+  return '{}\n'
+}
+
+export function formatWorkspaceJson(content) {
+  try {
+    return { content: `${JSON.stringify(JSON.parse(content), null, 2)}\n`, error: '' }
+  } catch (error) {
+    return { content, error: describeJsonError(error, content) }
+  }
+}
+
+export function groupWorkspaceFiles(fileNames) {
+  return [...fileNames].sort().reduce((groups, fileName) => {
+    const separator = fileName.indexOf('/')
+    const folder = separator === -1 ? 'Project' : fileName.slice(0, separator)
+    const label = separator === -1 ? fileName : fileName.slice(separator + 1)
+    const current = groups.find((group) => group.folder === folder)
+    if (current) current.files.push({ name: fileName, label })
+    else groups.push({ folder, files: [{ name: fileName, label }] })
+    return groups
+  }, [])
+}
+
+function describeJsonError(error, content) {
+  const position = Number(error?.message?.match(/position (\d+)/i)?.[1])
+  if (!Number.isFinite(position)) return 'File must contain valid JSON.'
+  const beforeError = content.slice(0, position)
+  const line = beforeError.split('\n').length
+  const column = position - beforeError.lastIndexOf('\n')
+  return `Invalid JSON near line ${line}, column ${column}.`
+}
+
 function inspectValue(value, path, state, depth = 0) {
   state.nodes += 1
   if (state.nodes > 2000) state.errors.add('JSON contains too many values (maximum 2,000).')
@@ -76,8 +113,8 @@ export function validateWorkspaceFile(fileName, content) {
     result.warnings = [...state.warnings]
     result.valid = result.errors.length === 0
     return result
-  } catch {
-    result.errors.push('File must contain valid JSON.')
+  } catch (error) {
+    result.errors.push(describeJsonError(error, content))
     return result
   }
 }
