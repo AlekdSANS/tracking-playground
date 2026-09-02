@@ -3501,6 +3501,50 @@ pre {
 .live-consent-actions button { padding: 10px 12px; border: 1px solid #4a3a4d; border-radius: 8px; color: #c3b4c5; background: #261e28; font-size: 10px; font-weight: 800; }
 .live-consent-actions button:last-child { color: #2a1722; border-color: #ff78ce; background: #ff78ce; }
 .live-consent-actions button:disabled { opacity: .35; cursor: not-allowed; }
+.gtm-api-panel { grid-column: 2 / 4; display: grid; grid-template-columns: minmax(260px, .8fr) minmax(360px, 1.2fr); min-height: 330px; border-top: 1px solid #293b49; color: #eaf7ff; background: radial-gradient(circle at 4% 0%, rgba(57, 190, 255, .1), transparent 32%), #11171c; }
+.gtm-api-intro, .gtm-api-result { min-width: 0; padding: 22px; }
+.gtm-api-intro { border-right: 1px solid #293b49; }
+.gtm-api-heading { display: flex; justify-content: space-between; gap: 12px; align-items: flex-start; }
+.gtm-api-heading h2, .gtm-api-heading p { margin: 3px 0; }
+.gtm-api-heading h2 { color: #effaff; font-size: 17px; }
+.gtm-api-heading > span { display: inline-flex; gap: 6px; align-items: center; padding: 5px 8px; border-radius: 999px; color: #89a5b5; background: #1a2932; font: 800 9px ui-monospace, monospace; text-transform: uppercase; }
+.gtm-api-heading > span i { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.gtm-api-panel.is-connected .gtm-api-heading > span { color: #6ed7ff; background: #173441; }
+.gtm-api-panel.is-error .gtm-api-heading > span { color: #ff9188; background: #3d2423; }
+.gtm-api-intro > p { min-height: 48px; margin: 11px 0; color: #9eb1bc; font-size: 11px; line-height: 1.55; }
+.gtm-api-guardrails { display: flex; flex-wrap: wrap; gap: 5px; margin: 12px 0 16px; }
+.gtm-api-guardrails span { padding: 4px 6px; border: 1px solid #2c4655; border-radius: 5px; color: #82a0b1; background: #132029; font: 8px ui-monospace, monospace; text-transform: uppercase; }
+.gtm-api-connect, .gtm-api-actions button, .gtm-api-import { display: inline-flex; justify-content: center; align-items: center; padding: 10px 12px; border: 1px solid #5ad1ff; border-radius: 8px; color: #071b24; background: #5ad1ff; font-size: 10px; font-weight: 900; text-decoration: none; }
+.gtm-api-connect { width: 100%; }
+.gtm-api-actions { display: flex; gap: 8px; }
+.gtm-api-actions button { flex: 1; }
+.gtm-api-actions button:last-child { color: #8fc7db; border-color: #315160; background: #17262e; }
+.gtm-api-actions button:disabled { opacity: .45; }
+.gtm-api-setup { padding: 12px; border: 1px dashed #355260; border-radius: 9px; background: #142129; }
+.gtm-api-setup strong { color: #bceaff; font-size: 11px; }
+.gtm-api-setup p { margin: 5px 0 0; color: #829ca9; font-size: 10px; line-height: 1.45; }
+.gtm-api-result { display: flex; flex-direction: column; }
+.gtm-api-result-heading { display: flex; justify-content: space-between; gap: 16px; align-items: flex-start; }
+.gtm-api-result-heading span, .gtm-api-result-heading strong { display: block; }
+.gtm-api-result-heading span { color: #77909d; font: 8px ui-monospace, monospace; text-transform: uppercase; }
+.gtm-api-result-heading strong { margin-top: 4px; font-size: 15px; }
+.gtm-api-result-heading b { padding: 5px 8px; border-radius: 6px; color: #78dcff; background: #17303b; font: 800 9px ui-monospace, monospace; }
+.gtm-api-result dl { display: grid; grid-template-columns: repeat(4, 1fr); gap: 7px; margin: 16px 0; }
+.gtm-api-result dl div { padding: 9px; border: 1px solid #293e49; border-radius: 8px; background: #151f25; }
+.gtm-api-result dt { color: #6f8794; font: 8px ui-monospace, monospace; text-transform: uppercase; }
+.gtm-api-result dd { overflow: hidden; margin: 5px 0 0; color: #dff5ff; font-size: 10px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+.gtm-api-workspaces { min-height: 82px; padding: 11px; border: 1px solid #293e49; border-radius: 9px; background: #0e1519; }
+.gtm-api-workspaces > strong { color: #b8dae8; font-size: 10px; }
+.gtm-api-workspaces ul { display: grid; gap: 5px; max-height: 88px; overflow: auto; margin: 8px 0 0; padding: 0; list-style: none; }
+.gtm-api-workspaces li { display: flex; justify-content: space-between; gap: 8px; padding: 6px 7px; border-radius: 5px; color: #9bb2bd; background: #162128; font-size: 9px; }
+.gtm-api-workspaces code { color: #71d7ff; background: transparent; }
+.gtm-api-workspaces p { color: #718792; font-size: 9px; }
+.gtm-api-import { width: 100%; margin-top: 10px; }
+.gtm-api-result > small { margin-top: 7px; color: #718995; font-size: 9px; }
+.gtm-api-empty { display: grid; place-items: center; align-content: center; flex: 1; text-align: center; }
+.gtm-api-empty > span { display: grid; place-items: center; width: 44px; height: 44px; margin-bottom: 9px; border: 1px dashed #355767; border-radius: 50%; color: #65c9ef; font-size: 22px; }
+.gtm-api-empty strong { color: #c4dce6; font-size: 11px; }
+.gtm-api-empty p { max-width: 330px; margin: 5px 0 0; color: #748b96; font-size: 10px; line-height: 1.45; }
 .workspace-footer { display: flex; gap: 16px; align-items: center; padding: 13px 28px; border-top: 1px solid #30323a; color: #90939d; background: #121318; font-size: 12px; }
 .tag-workspace-locked { display: grid; place-items: center; padding: 30px; }
 .tag-workspace-locked > div { max-width: 600px; padding: 40px; border: 1px solid #343640; border-radius: 24px; background: #18191f; }
@@ -3515,6 +3559,7 @@ pre {
 	.workspace-output { grid-column: 1 / 3; }
 	.live-gtm-panel { grid-column: 1 / 3; grid-template-columns: 1fr 1fr; }
 	.live-gtm-activity { grid-column: 1 / 3; }
+	.gtm-api-panel { grid-column: 1 / 3; }
 }
 
 @media (max-width: 720px) {
@@ -3523,5 +3568,8 @@ pre {
 	.workspace-header, .workspace-header > div:last-child { flex-direction: column; }
 	.workspace-files, .workspace-editor, .workspace-guide, .workspace-runner, .workspace-output, .live-gtm-panel, .live-gtm-activity { grid-column: 1; }
 	.live-gtm-panel { grid-template-columns: 1fr; }
+	.gtm-api-panel { grid-column: 1; grid-template-columns: 1fr; }
+	.gtm-api-intro { border-right: 0; border-bottom: 1px solid #293b49; }
+	.gtm-api-result dl { grid-template-columns: 1fr 1fr; }
 	.workspace-file-list { grid-template-columns: 1fr 1fr; }
 }

@@ -130,6 +130,10 @@ Add these values to `.env.local` for development and to the Vercel project setti
 | `RESEND_API_KEY` | Resend credential for form emails |
 | `CONTACT_TO_EMAIL` | Recipient for form submissions |
 | `CONTACT_FROM_EMAIL` | Verified sender or Resend test sender |
+| `GTM_GOOGLE_CLIENT_ID` | Google OAuth web-client ID with the Tag Manager API enabled |
+| `GTM_GOOGLE_CLIENT_SECRET` | Server-only OAuth client secret |
+| `GTM_OAUTH_REDIRECT_URI` | Exact authorized callback URI, such as `http://localhost:3000/api/gtm-oauth-callback` |
+| `GTM_OAUTH_COOKIE_SECRET` | Random value of at least 32 characters used to encrypt short-lived GTM access cookies |
 
 ```env
 MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster.example.mongodb.net/?retryWrites=true&w=majority
@@ -138,9 +142,15 @@ SESSION_SECRET=replace-this-with-a-long-random-secret
 RESEND_API_KEY=re_your_resend_api_key
 CONTACT_TO_EMAIL=you@example.com
 CONTACT_FROM_EMAIL=onboarding@resend.dev
+GTM_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
+GTM_GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
+GTM_OAUTH_REDIRECT_URI=http://localhost:3000/api/gtm-oauth-callback
+GTM_OAUTH_COOKIE_SECRET=replace-with-at-least-32-random-characters
 ```
 
 Never commit `.env.local`. Resend's test sender generally delivers only to the email associated with the Resend account; use a verified domain for production delivery.
+
+The Tag Lab API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup
 

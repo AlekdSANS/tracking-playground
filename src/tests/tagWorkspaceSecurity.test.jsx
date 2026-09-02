@@ -305,3 +305,39 @@ describe('opt-in Live GTM boundary', () => {
     expect(screen.getByText(/session expired and was destroyed/i)).toBeInTheDocument()
   })
 })
+
+describe('read-only GTM API surface', () => {
+  test('keeps OAuth on the server and imports only sanitized metadata', async () => {
+    const snapshot = {
+      account: { name: 'Learning account', accountId: '10' },
+      container: { name: 'Practice container', publicId: 'GTM-SAFE123', accountId: '10', containerId: '20', path: 'accounts/10/containers/20', domainName: ['practice.invalid'], usageContext: ['web'], tagManagerUrl: 'https://tagmanager.google.com/' },
+      workspaces: [{ name: 'Default Workspace', workspaceId: '1', path: 'accounts/10/containers/20/workspaces/1' }],
+    }
+    vi.stubGlobal('fetch', vi.fn(async (url) => {
+      if (url === '/api/gtm-status') return { ok: true, json: async () => ({ configured: true, connected: true, scope: 'readonly', expiresAt: Date.now() + 600000 }) }
+      if (String(url).startsWith('/api/gtm-container')) return { ok: true, json: async () => snapshot }
+      return { ok: true, json: async () => ({ disconnected: true }) }
+    }))
+    const user = userEvent.setup()
+    renderApp('/tag-workspace#container=GTM-SAFE123')
+
+    expect(await screen.findByText(/GTM-SAFE123 was verified/i)).toBeInTheDocument()
+    expect(screen.getByText(/^read-only GTM API$/i)).toBeInTheDocument()
+    expect(document.body.textContent).not.toMatch(/access[_ -]?token|server-token/i)
+    await user.click(screen.getByRole('button', { name: /import sanitized snapshot/i }))
+
+    const editor = screen.getByRole('textbox', { name: /edit container\.json/i })
+    expect(editor.value).toContain('tracking-playground/gtm-api-snapshot/v1')
+    expect(editor.value).toContain('"readOnly": true')
+    expect(editor.value).toContain('Default Workspace')
+    expect(editor.value).not.toMatch(/access[_ -]?token/i)
+  })
+
+  test('shows setup guidance without exposing a connect action when OAuth is unconfigured', async () => {
+    vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ configured: false, connected: false }) })))
+    renderApp('/tag-workspace#container=GTM-SAFE123')
+    expect(await screen.findByText(/add the server-side Google OAuth settings/i)).toBeInTheDocument()
+    expect(screen.getByText(/OAuth setup required/i)).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /connect Google Tag Manager/i })).not.toBeInTheDocument()
+  })
+})

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import GtmApiPanel from '../components/GtmApiPanel'
 import LiveGtmPanel from '../components/LiveGtmPanel'
 import {
   WORKSPACE_MAX_FILES,
@@ -231,6 +232,21 @@ function TagWorkspacePage() {
     setNotice('Run cancelled. The sandbox was destroyed.')
   }
 
+  function importGtmSnapshot(snapshot) {
+    const safeSnapshot = {
+      schema: 'tracking-playground/gtm-api-snapshot/v1',
+      importedAt: new Date().toISOString(),
+      readOnly: true,
+      account: snapshot.account,
+      containerVersion: { container: snapshot.container },
+      workspaces: snapshot.workspaces,
+    }
+    setFiles((current) => ({ ...current, 'container.json': `${JSON.stringify(safeSnapshot, null, 2)}\n` }))
+    setSelectedFile('container.json')
+    setCursor({ line: 1, column: 1 })
+    setNotice(`${snapshot.container.publicId} metadata imported locally. No OAuth token was copied.`)
+  }
+
   if (!containerId) {
     return <main className="tag-workspace-locked"><div><span>Workspace locked</span><h1>A valid GTM container ID is required.</h1><p>Return to the lab and enter an ID such as GTM-ABC1234. Scripts and full container tags are rejected.</p><a href="/tag-lab">Back to Tag Lab</a></div></main>
   }
@@ -298,6 +314,7 @@ function TagWorkspacePage() {
           <div className="workspace-output"><div className="workspace-output-heading"><strong>Disposable run history</strong><div><span>{output.length} local</span>{output.length > 0 && <button type="button" onClick={() => setOutput([])}>Clear</button>}</div></div>{output.length ? <ol>{output.map((item) => <li className={`is-${item.status}`} key={item.id}><div><span>{item.status}</span><strong>{item.payload.event}</strong><code>{item.id}</code></div>{item.summary ? <dl><div><dt>Trigger</dt><dd>{item.summary.triggerName}</dd></div><div><dt>Parameters</dt><dd>{item.summary.parameterCount}</dd></div><div><dt>dataLayer</dt><dd>{item.summary.dataLayerLength} event</dd></div><div><dt>Network</dt><dd>{item.summary.networkRequests} requests</dd></div></dl> : <p>No result retained for this disposed run.</p>}<details><summary>Payload</summary><pre>{JSON.stringify(item.payload, null, 2)}</pre></details></li>)}</ol> : <div className="workspace-output-empty"><strong>No simulations yet</strong><span>Completed reports stay only until this window closes.</span></div>}</div>
         </section>
         <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
+        <GtmApiPanel containerId={containerId} onImportSnapshot={importGtmSnapshot} />
       </div>
       <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); selectFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
