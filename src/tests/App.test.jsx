@@ -519,7 +519,7 @@ test('shows the isolated GTM and GA4 lab guide', () => {
     screen.getByRole('heading', { name: /secure workspace field guide/i }),
   ).toBeInTheDocument()
   expect(screen.getByRole('button', { name: /open secure workspace/i })).toBeDisabled()
-  expect(screen.getByText(/held until the boundary is proven/i)).toBeInTheDocument()
+  expect(screen.getByText(/explicit restricted 10-minute session/i)).toBeInTheDocument()
 })
 
 test('opens the offline workspace only for a valid GTM container ID', async () => {
@@ -586,7 +586,7 @@ test('renders the workspace without the site shell or tracking console', () => {
 
   expect(screen.getByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
   expect(screen.getByRole('complementary', { name: /virtual project files/i })).toBeInTheDocument()
-  expect(screen.getByText(/^live gtm locked$/i)).toBeInTheDocument()
+  expect(screen.getByText(/^live gtm opt-in$/i)).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
 })
@@ -686,7 +686,7 @@ test('builds contextual guidance and learning progress from workspace state', ()
   })
 
   expect(context.title).toBe('Build generate_lead')
-  expect(context.steps.map((step) => step.title).join(' ')).toMatch(/run the simulation|recreate it in GTM/i)
+  expect(context.steps.map((step) => step.title).join(' ')).toMatch(/run the simulation|test it with GTM/i)
   expect(progress.every((step) => step.complete)).toBe(true)
 })
 

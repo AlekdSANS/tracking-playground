@@ -48,7 +48,7 @@ export function getWorkspaceGuideContext(fileName, validation) {
         { title: 'Name the action', detail: 'Use a stable GA4-style event name that describes what happened.' },
         { title: 'Add useful context', detail: 'Keep only parameters that help analysis; never add personal data or credentials.' },
         { title: validation.safeToRun ? 'Run the simulation' : 'Clear validation first', detail: validation.safeToRun ? 'The offline runner can now show the exact payload GTM would receive.' : firstIssue ? `${firstIssue.path}: ${firstIssue.message}` : 'Resolve all errors and warnings before running.' },
-        { title: 'Recreate it in GTM', detail: `Later, use a Custom Event trigger named “${eventName}” and map only the parameters you need.` },
+        { title: 'Test it with GTM', detail: `If you explicitly enable Live GTM, use a Custom Event trigger named “${eventName}” and map only the parameters you need.` },
       ],
     }
   }

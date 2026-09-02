@@ -5,7 +5,7 @@ const guides = [
   { id: 'setup', label: 'Set up', title: 'Start with a disposable practice project', text: 'Use a GTM container created only for learning. Enter its public ID to label the local workspace; this phase does not contact Google.' },
   { id: 'files', label: 'Files', title: 'Learn through editable examples', text: 'The workspace starts with container, event, test, and guide files. Create, import, validate, edit, and download JSON or Markdown without server storage.' },
   { id: 'runner', label: 'Runner', title: 'Simulate dataLayer events offline', text: 'Valid event JSON runs inside an opaque-origin iframe whose Content Security Policy disables every network connection.' },
-  { id: 'safety', label: 'Safety', title: 'Keep real data and code outside', text: 'Raw scripts, unsafe file names, dangerous JSON keys, oversized files, and likely personal or secret data are blocked or flagged. Live GTM stays locked.' },
+  { id: 'safety', label: 'Safety', title: 'Keep real data and code outside', text: 'Raw scripts, unsafe file names, dangerous JSON keys, oversized files, and likely personal or secret data are blocked or flagged. Live GTM stays off until a separate, temporary opt-in.' },
 ]
 
 function TagLabPage() {
@@ -39,7 +39,7 @@ function TagLabPage() {
         </form>
         <section className="workspace-launch-preview" aria-label="Workspace security phases">
           <p className="eyebrow">Incremental rollout</p><h2>Prove the safe path first</h2>
-          <div>{[['01','Virtual workspace','Create and edit local files'],['02','Strict validation','Reject unsafe names and JSON'],['03','Isolated simulator','Run events with no network'],['04','Live GTM','Held until the boundary is proven']].map(([number,title,text], index) => <article className={index < 3 ? 'is-ready' : 'is-locked'} key={number}><span>{number}</span><div><strong>{title}</strong><p>{text}</p></div><b>{index < 3 ? 'Ready' : 'Locked'}</b></article>)}</div>
+          <div>{[['01','Virtual workspace','Create and edit local files','Ready'],['02','Strict validation','Reject unsafe names and JSON','Ready'],['03','Isolated simulator','Run events with no network','Ready'],['04','Live GTM','Explicit restricted 10-minute session','Opt-in']].map(([number,title,text,status]) => <article className={status === 'Ready' ? 'is-ready' : 'is-locked'} key={number}><span>{number}</span><div><strong>{title}</strong><p>{text}</p></div><b>{status}</b></article>)}</div>
         </section>
       </div>
       <section className="tag-guide" aria-labelledby="tag-guide-heading">

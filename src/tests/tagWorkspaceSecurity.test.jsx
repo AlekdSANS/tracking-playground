@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
@@ -10,6 +11,12 @@ import {
   validateWorkspaceFile,
 } from '../utils/tagWorkspace'
 import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS } from '../utils/tagRunner'
+import {
+  buildLiveGtmDocument,
+  LIVE_GTM_BRIDGE_HASH,
+  LIVE_GTM_BRIDGE_SCRIPT,
+  LIVE_GTM_SESSION_MS,
+} from '../utils/liveGtm'
 
 function renderApp(path) {
   return render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)
@@ -216,5 +223,85 @@ describe('disposable runner isolation', () => {
     expect(screen.getAllByText(/^complete$/i)).toHaveLength(2)
     expect(screen.getByText('0 requests')).toBeInTheDocument()
     expect(screen.getByText(/completed.*sandbox was destroyed/i)).toBeInTheDocument()
+  })
+})
+
+describe('opt-in Live GTM boundary', () => {
+  class InertMessageChannel {
+    constructor() {
+      this.port1 = { onmessage: null, close: vi.fn(), postMessage: vi.fn(), start: vi.fn() }
+      this.port2 = { close: vi.fn() }
+    }
+  }
+
+  test('rejects hostile container IDs and session tokens before building HTML', () => {
+    expect(() => buildLiveGtmDocument('<script>alert(1)</script>', 'live-1')).toThrow(/valid GTM/i)
+    expect(() => buildLiveGtmDocument('GTM-SAFE123', '../../escape')).toThrow(/session token/i)
+  })
+
+  test('pins the static bridge hash and limits the live frame to GTM and GA endpoints', () => {
+    const expectedHash = `sha256-${createHash('sha256').update(LIVE_GTM_BRIDGE_SCRIPT).digest('base64')}`
+    const documentSource = buildLiveGtmDocument('GTM-SAFE123', 'live-1')
+    const csp = documentSource.match(/Content-Security-Policy" content="([^"]+)"/)?.[1] || ''
+    const scriptPolicy = csp.split(';').find((directive) => directive.trim().startsWith('script-src '))
+
+    expect(LIVE_GTM_BRIDGE_HASH).toBe(expectedHash)
+    expect(scriptPolicy).toContain(LIVE_GTM_BRIDGE_HASH)
+    expect(scriptPolicy).toContain('https://www.googletagmanager.com')
+    expect(scriptPolicy).not.toMatch(/unsafe-inline|unsafe-eval/)
+    expect(csp).toMatch(/connect-src https:\/\/www\.googletagmanager\.com https:\/\/\*\.google-analytics\.com https:\/\/\*\.analytics\.google\.com/)
+    expect(csp).toMatch(/frame-src 'none'/)
+    expect(csp).toMatch(/worker-src 'none'/)
+    expect(csp).toMatch(/form-action 'none'/)
+    expect(csp).toMatch(/base-uri 'none'/)
+    expect(documentSource).not.toMatch(/doubleclick|googleadservices|facebook|segment\.com/i)
+    expect(LIVE_GTM_BRIDGE_SCRIPT).toMatch(/gtm\.blocklist/)
+    expect(LIVE_GTM_BRIDGE_SCRIPT).toMatch(/customScripts/)
+    expect(LIVE_GTM_BRIDGE_SCRIPT).toMatch(/nonGoogleScripts/)
+    expect(LIVE_GTM_BRIDGE_SCRIPT).toMatch(/sandboxedScripts/)
+  })
+
+  test('does not create a live frame until every disclosure and exact ID are confirmed', async () => {
+    vi.stubGlobal('MessageChannel', InertMessageChannel)
+    const user = userEvent.setup()
+    renderApp('/tag-workspace#container=GTM-SAFE123')
+
+    expect(screen.queryByTitle(/restricted live gtm/i)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /review and opt in/i }))
+    const connectButton = screen.getByRole('button', { name: /connect for 10 minutes/i })
+    expect(connectButton).toBeDisabled()
+
+    await user.click(screen.getByLabelText(/i own or may test this container/i))
+    await user.click(screen.getByLabelText(/i will use synthetic data only/i))
+    await user.click(screen.getByLabelText(/i understand events can leave this browser/i))
+    await user.type(screen.getByLabelText(/type GTM-SAFE123 to confirm/i), 'GTM-SAFE123')
+    expect(connectButton).toBeEnabled()
+    await user.click(connectButton)
+
+    const iframe = screen.getByTitle(/restricted live gtm GTM-SAFE123/i)
+    expect(iframe).toHaveAttribute('sandbox', 'allow-scripts')
+    expect(iframe.getAttribute('sandbox')).not.toMatch(/allow-same-origin|allow-forms|allow-popups|allow-top-navigation/)
+    expect(iframe.getAttribute('srcdoc')).toContain(LIVE_GTM_BRIDGE_HASH)
+
+    await user.click(screen.getByRole('button', { name: /disconnect and destroy/i }))
+    expect(screen.queryByTitle(/restricted live gtm/i)).not.toBeInTheDocument()
+  })
+
+  test('destroys the live frame when its ten-minute lease expires', () => {
+    vi.useFakeTimers()
+    vi.stubGlobal('MessageChannel', InertMessageChannel)
+    renderApp('/tag-workspace#container=GTM-SAFE123')
+
+    fireEvent.click(screen.getByRole('button', { name: /review and opt in/i }))
+    fireEvent.click(screen.getByLabelText(/i own or may test this container/i))
+    fireEvent.click(screen.getByLabelText(/i will use synthetic data only/i))
+    fireEvent.click(screen.getByLabelText(/i understand events can leave this browser/i))
+    fireEvent.change(screen.getByLabelText(/type GTM-SAFE123 to confirm/i), { target: { value: 'GTM-SAFE123' } })
+    fireEvent.click(screen.getByRole('button', { name: /connect for 10 minutes/i }))
+    expect(screen.getByTitle(/restricted live gtm/i)).toBeInTheDocument()
+
+    act(() => vi.advanceTimersByTime(LIVE_GTM_SESSION_MS))
+    expect(screen.queryByTitle(/restricted live gtm/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/session expired and was destroyed/i)).toBeInTheDocument()
   })
 })

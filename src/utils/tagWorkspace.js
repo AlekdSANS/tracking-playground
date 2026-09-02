@@ -30,7 +30,7 @@ export function isValidWorkspaceFileName(fileName) {
 
 export function createStarterWorkspace(containerId) {
   return {
-    'README.md': `# Offline GTM practice\n\nContainer: ${containerId}\n\nEdit an event JSON file, validate it, then run it in the network-disabled simulator. Live GTM is intentionally locked.`,
+    'README.md': `# Offline-first GTM practice\n\nContainer: ${containerId}\n\nEdit an event JSON file, validate it, then run it in the network-disabled simulator. Live GTM remains off until a separate, temporary opt-in review is completed.`,
     'container.json': JSON.stringify({ containerVersion: { container: { publicId: containerId, name: 'Practice container' } } }, null, 2),
     'events/page_view.json': JSON.stringify({ event: 'page_view', page_title: 'Practice page', page_location: 'https://sandbox.invalid/tag-lab', debug_mode: true }, null, 2),
     'events/generate_lead.json': JSON.stringify({ event: 'generate_lead', currency: 'USD', value: 25, lead_source: 'practice_form', debug_mode: true }, null, 2),

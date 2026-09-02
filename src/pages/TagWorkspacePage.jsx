@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
+import LiveGtmPanel from '../components/LiveGtmPanel'
 import {
   WORKSPACE_MAX_FILES,
   createStarterWorkspace,
@@ -236,7 +237,7 @@ function TagWorkspacePage() {
 
   return (
     <main className="tag-workspace-page">
-      <header className="workspace-header"><div><p>Offline simulation · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM locked</span><a href="/tag-lab">Exit workspace</a></div></header>
+      <header className="workspace-header"><div><p>Offline-first practice · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM opt-in</span><a href="/tag-lab">Exit workspace</a></div></header>
       <div className="workspace-security-strip"><strong>Network-disabled runner</strong><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div>
 
       <div className="workspace-grid">
@@ -285,7 +286,7 @@ function TagWorkspacePage() {
           {guideTab === 'reference' && <div className="workspace-guide-panel" role="tabpanel">
             <p className="eyebrow">Plain-language reference</p><h3>Terms you will use</h3>
             <dl className="workspace-glossary">{WORKSPACE_GLOSSARY.map((item) => <div key={item.term}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl>
-            <div className="workspace-live-lock"><strong>Live GTM remains locked</strong><p>Nothing here contacts GTM or GA4. The isolated runner must be proven before a separately consented network mode is considered.</p></div>
+            <div className="workspace-live-lock"><strong>Live GTM is off by default</strong><p>The separate live panel requires explicit acknowledgement, restricts tag classes and destinations, and destroys itself after 10 minutes.</p></div>
           </div>}
         </aside>
 
@@ -296,6 +297,7 @@ function TagWorkspacePage() {
           </div>
           <div className="workspace-output"><div className="workspace-output-heading"><strong>Disposable run history</strong><div><span>{output.length} local</span>{output.length > 0 && <button type="button" onClick={() => setOutput([])}>Clear</button>}</div></div>{output.length ? <ol>{output.map((item) => <li className={`is-${item.status}`} key={item.id}><div><span>{item.status}</span><strong>{item.payload.event}</strong><code>{item.id}</code></div>{item.summary ? <dl><div><dt>Trigger</dt><dd>{item.summary.triggerName}</dd></div><div><dt>Parameters</dt><dd>{item.summary.parameterCount}</dd></div><div><dt>dataLayer</dt><dd>{item.summary.dataLayerLength} event</dd></div><div><dt>Network</dt><dd>{item.summary.networkRequests} requests</dd></div></dl> : <p>No result retained for this disposed run.</p>}<details><summary>Payload</summary><pre>{JSON.stringify(item.payload, null, 2)}</pre></details></li>)}</ol> : <div className="workspace-output-empty"><strong>No simulations yet</strong><span>Completed reports stay only until this window closes.</span></div>}</div>
         </section>
+        <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
       </div>
       <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); selectFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
