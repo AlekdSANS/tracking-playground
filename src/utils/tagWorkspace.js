@@ -16,6 +16,7 @@ const JWT = /\beyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\b/
 const GOOGLE_API_KEY = /\bAIza[A-Za-z0-9_-]{20,}\b/
 const PRIVATE_KEY = /-----BEGIN (?:RSA |EC |OPENSSH )?PRIVATE KEY-----/
 const BEARER_TOKEN = /\bBearer\s+[A-Za-z0-9._~+/-]{12,}={0,2}\b/i
+const SCRIPT_CONTENT = /<script\b|javascript\s*:|\bon(?:error|load|click)\s*=|\beval\s*\(|\bnew\s+Function\s*\(/i
 
 export function readWorkspaceContainerId(hash = '') {
   const params = new URLSearchParams(String(hash).replace(/^#/, ''))
@@ -103,6 +104,7 @@ function looksLikePaymentCard(value) {
 }
 
 function inspectString(value, path, state) {
+  if (SCRIPT_CONTENT.test(value)) addIssue(state, 'error', 'security', path, 'Script-like content is blocked. Event values must be inert data only.', 'script-content')
   if (EMAIL.test(value)) addIssue(state, 'warning', 'privacy', path, 'Possible email address detected. Replace it with a synthetic value.', 'pii-email')
   if (PHONE.test(value)) addIssue(state, 'warning', 'privacy', path, 'Possible phone number detected. Replace it with a synthetic value.', 'pii-phone')
   if (IPV4.test(value)) addIssue(state, 'warning', 'privacy', path, 'Possible IP address detected. Do not send identifiers in analytics events.', 'pii-ip')
