@@ -35,6 +35,29 @@ async function completeContactForm(user) {
   await user.type(screen.getByLabelText(/message/i), 'Please contact me.')
 }
 
+test('switches themes and remembers the selection', async () => {
+  delete document.documentElement.dataset.theme
+  window.localStorage.removeItem('tracking-playground-theme')
+
+  const user = userEvent.setup()
+  const { unmount } = renderApp()
+
+  await waitFor(() => {
+    expect(document.documentElement.dataset.theme).toBe('light')
+  })
+  expect(screen.getByRole('button', { name: /switch to dark theme/i })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /switch to dark theme/i }))
+
+  expect(document.documentElement.dataset.theme).toBe('dark')
+  expect(window.localStorage.getItem('tracking-playground-theme')).toBe('dark')
+  expect(screen.getByRole('button', { name: /switch to light theme/i })).toBeInTheDocument()
+
+  unmount()
+  document.documentElement.dataset.theme = 'light'
+  window.localStorage.removeItem('tracking-playground-theme')
+})
+
 test('shows required field validation', async () => {
   const user = userEvent.setup()
   renderContactForm()
@@ -487,7 +510,23 @@ test('shows the isolated GTM and GA4 lab guide', () => {
   expect(
     screen.getByRole('heading', { name: /gtm \+ ga4 field guide/i }),
   ).toBeInTheDocument()
-  expect(screen.getByRole('button', { name: /simulate only/i })).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /launch with gtm/i })).toBeDisabled()
+  expect(screen.queryByRole('button', { name: /simulate only/i })).not.toBeInTheDocument()
+})
+
+test('unlocks the sandbox only for a valid GTM container ID', async () => {
+  const user = userEvent.setup()
+  renderApp(['/tag-lab'])
+
+  const launchButton = screen.getByRole('button', { name: /launch with gtm/i })
+  expect(launchButton).toBeDisabled()
+  expect(screen.queryByTitle(/isolated gtm datalayer runtime/i)).not.toBeInTheDocument()
+
+  await user.type(screen.getByLabelText(/gtm container id/i), 'GTM-TEST99')
+
+  expect(launchButton).toBeEnabled()
+  await user.click(launchButton)
+  expect(screen.getByTitle(/isolated gtm datalayer runtime/i)).toBeInTheDocument()
 })
 
 test('rejects pasted scripts in the GTM container field', async () => {

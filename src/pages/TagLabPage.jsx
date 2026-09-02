@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useOutletContext } from 'react-router-dom'
 import { isValidGtmContainerId } from '../utils/tagLab'
 
 const GA4_EVENT_PATTERN = /^[A-Za-z][A-Za-z0-9_]{0,39}$/
@@ -69,7 +70,7 @@ const guideSections = [
       'Create a new Web container in Google Tag Manager specifically for practice.',
       'Create a test GA4 property and Web data stream, then copy its G- measurement ID.',
       'Paste only the GTM- container ID into this lab. Never paste a complete script tag.',
-      'Start in simulation mode first if you want to inspect payloads before loading GTM.',
+      'Launch the sandbox only after the container ID is recognized as valid.',
     ],
     links: [
       {
@@ -157,11 +158,30 @@ const guideSections = [
   },
 ]
 
-function buildSandboxDocument(containerId) {
+function buildSandboxDocument(containerId, theme) {
   const safeContainerId = isValidGtmContainerId(containerId)
     ? containerId.trim().toUpperCase()
     : ''
   const containerLiteral = JSON.stringify(safeContainerId)
+  const sandboxColors = theme === 'dark'
+    ? {
+        text: '#f7f7fa',
+        background: '#24252b',
+        border: '#444650',
+        surface: '#18191e',
+        muted: '#a9abb3',
+        dot: '#9b8cff',
+        dotShadow: 'rgba(155, 140, 255, .14)',
+      }
+    : {
+        text: '#f7f6ff',
+        background: '#252238',
+        border: '#48445e',
+        surface: '#1d1b2c',
+        muted: '#aaa6c3',
+        dot: '#c9f45b',
+        dotShadow: 'rgba(201, 244, 91, .1)',
+      }
 
   return `<!doctype html>
 <html lang="en">
@@ -172,12 +192,12 @@ function buildSandboxDocument(containerId) {
     <style>
       :root { color-scheme: dark; font-family: Inter, system-ui, sans-serif; }
       * { box-sizing: border-box; }
-      body { margin: 0; padding: 16px; color: #f7f6ff; background: #252238; }
-      .frame-shell { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; min-height: 82px; border: 1px solid #48445e; border-radius: 12px; padding: 14px; background: #1d1b2c; }
-      .dot { width: 11px; height: 11px; border-radius: 50%; background: #c9f45b; box-shadow: 0 0 0 7px rgba(201, 244, 91, .1); }
+      body { margin: 0; padding: 16px; color: ${sandboxColors.text}; background: ${sandboxColors.background}; }
+      .frame-shell { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: center; min-height: 82px; border: 1px solid ${sandboxColors.border}; border-radius: 12px; padding: 14px; background: ${sandboxColors.surface}; }
+      .dot { width: 11px; height: 11px; border-radius: 50%; background: ${sandboxColors.dot}; box-shadow: 0 0 0 7px ${sandboxColors.dotShadow}; }
       strong, small { display: block; }
       strong { margin-bottom: 4px; font-size: 14px; }
-      small { color: #aaa6c3; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
+      small { color: ${sandboxColors.muted}; font-family: ui-monospace, SFMono-Regular, Consolas, monospace; font-size: 11px; }
     </style>
   </head>
   <body>
@@ -268,6 +288,7 @@ function formatLabTime(timestamp) {
 }
 
 function TagLabPage() {
+  const { theme = 'light' } = useOutletContext() || {}
   const iframeRef = useRef(null)
   const [containerId, setContainerId] = useState('')
   const [loadedContainerId, setLoadedContainerId] = useState('')
@@ -282,8 +303,8 @@ function TagLabPage() {
   const [activeGuideId, setActiveGuideId] = useState('setup')
 
   const sandboxDocument = useMemo(
-    () => buildSandboxDocument(loadedContainerId),
-    [loadedContainerId],
+    () => buildSandboxDocument(loadedContainerId, theme),
+    [loadedContainerId, theme],
   )
 
   const activeGuide =
@@ -348,28 +369,31 @@ function TagLabPage() {
     return () => window.clearTimeout(timeoutId)
   }, [sessionNumber])
 
-  function startSession(nextContainerId = '') {
+  const normalizedContainerId = containerId.trim().toUpperCase()
+  const hasContainerId = normalizedContainerId.length > 0
+  const containerIdIsValid = isValidGtmContainerId(normalizedContainerId)
+
+  function startSession(nextContainerId) {
+    if (!isValidGtmContainerId(nextContainerId)) {
+      setFeedback('The sandbox stayed locked because the GTM container ID is invalid.')
+      return
+    }
+
     setLoadedContainerId(nextContainerId)
     setSessionNumber((currentNumber) => currentNumber + 1)
-    setSandboxStatus(nextContainerId ? 'loading' : 'ready')
+    setSandboxStatus('loading')
     setEvents([])
-    setFeedback(
-      nextContainerId
-        ? `Starting an isolated session for ${nextContainerId}.`
-        : 'Simulation-only sandbox started.',
-    )
+    setFeedback(`Starting an isolated session for ${nextContainerId}.`)
   }
 
   function handleContainerSubmit(event) {
     event.preventDefault()
-    const normalizedId = containerId.trim().toUpperCase()
-
-    if (!isValidGtmContainerId(normalizedId)) {
+    if (!containerIdIsValid) {
       setFeedback('Enter a container ID like GTM-ABC1234. Raw tags and scripts are rejected.')
       return
     }
 
-    startSession(normalizedId)
+    startSession(normalizedContainerId)
   }
 
   function resetSession() {
@@ -422,7 +446,7 @@ function TagLabPage() {
 
   const statusLabel = {
     idle: 'Sandbox offline',
-    ready: 'Simulation ready',
+    ready: 'Sandbox ready',
     loading: 'Loading GTM',
     loaded: 'GTM connected',
     error: 'GTM blocked · simulation ready',
@@ -462,27 +486,35 @@ function TagLabPage() {
               GTM container ID
               <input
                 type="text"
-                value={containerId}
-                onChange={(event) => setContainerId(event.target.value.toUpperCase())}
+              value={containerId}
+                onChange={(event) => {
+                  setContainerId(event.target.value.toUpperCase())
+                  setFeedback('')
+                }}
                 placeholder="GTM-ABC1234"
                 autoComplete="off"
                 maxLength="28"
                 aria-describedby="container-id-help"
+                aria-invalid={hasContainerId && !containerIdIsValid}
               />
             </label>
-            <p id="container-id-help" className="lab-field-help">
-              Use a container you own. The ID stays in memory and expires after 10 minutes.
+            <p
+              id="container-id-help"
+              className={`lab-field-help${hasContainerId && !containerIdIsValid ? ' is-error' : ''}`}
+            >
+              {containerIdIsValid
+                ? 'Valid container ID. The secure sandbox is ready to launch.'
+                : hasContainerId
+                  ? 'Enter an ID like GTM-ABC1234. Raw tags and scripts are rejected.'
+                  : 'Enter a container you own. The sandbox stays locked until the ID is valid.'}
             </p>
             <div className="tag-lab-setup-actions">
-              <button type="submit" className="primary-button">
-                Launch with GTM
-              </button>
               <button
-                type="button"
-                className="secondary-button"
-                onClick={() => startSession('')}
+                type="submit"
+                className="primary-button"
+                disabled={!containerIdIsValid}
               >
-                Simulate only
+                Launch with GTM
               </button>
             </div>
             <button type="button" className="tag-lab-reset" onClick={resetSession}>
@@ -526,8 +558,8 @@ function TagLabPage() {
           ) : (
             <div className="tag-lab-placeholder">
               <span aria-hidden="true">↳</span>
-              <strong>Your isolated runtime starts here.</strong>
-              <p>Connect a disposable GTM container or begin in simulation mode.</p>
+              <strong>The secure runtime is locked.</strong>
+              <p>Enter a valid GTM container ID to launch the isolated sandbox.</p>
             </div>
           )}
 

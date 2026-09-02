@@ -18,6 +18,22 @@ function Layout() {
   const [showConsentSettings, setShowConsentSettings] = useState(false)
   const [user, setUser] = useState(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
+  const [theme, setTheme] = useState(() => (
+    document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
+  ))
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme
+
+    try {
+      window.localStorage.setItem('tracking-playground-theme', theme)
+    } catch {
+      // Keep theme switching available when storage is blocked.
+    }
+
+    const themeColor = document.querySelector('meta[name="theme-color"]')
+    themeColor?.setAttribute('content', theme === 'dark' ? '#121216' : '#5b4df0')
+  }, [theme])
 
   useEffect(() => {
     let active = true
@@ -47,8 +63,8 @@ function Layout() {
     <>
       <Waves
         className="site-waves"
-        lineColor="rgba(25, 103, 210, 0.16)"
-        backgroundColor="rgba(255, 255, 255, 0.22)"
+        lineColor={theme === 'dark' ? 'rgba(184, 255, 114, 0.12)' : 'rgba(25, 103, 210, 0.16)'}
+        backgroundColor={theme === 'dark' ? 'rgba(18, 18, 22, 0.24)' : 'rgba(255, 255, 255, 0.22)'}
         waveSpeedX={0.0125}
         waveSpeedY={0.01}
         waveAmpX={40}
@@ -71,18 +87,6 @@ function Layout() {
           <span aria-hidden="true">✦</span>
           Tracking Playground
         </a>
-        <button
-          type="button"
-          className="menu-toggle"
-          aria-expanded={isMenuOpen}
-          aria-controls="main-navigation"
-          aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
-          onClick={() => setIsMenuOpen((currentValue) => !currentValue)}
-        >
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-          <span aria-hidden="true" />
-        </button>
         <nav
           id="main-navigation"
           className={isMenuOpen ? 'is-open' : undefined}
@@ -100,12 +104,38 @@ function Layout() {
             </NavLink>
           ))}
         </nav>
+        <div className="site-header-actions">
+          <button
+            type="button"
+            className="theme-toggle"
+            aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} theme`}
+            aria-pressed={theme === 'dark'}
+            onClick={() => setTheme((currentTheme) => (
+              currentTheme === 'dark' ? 'light' : 'dark'
+            ))}
+          >
+            <span aria-hidden="true">{theme === 'dark' ? '☾' : '☀'}</span>
+            <strong>{theme === 'dark' ? 'Dark' : 'Light'}</strong>
+          </button>
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-expanded={isMenuOpen}
+            aria-controls="main-navigation"
+            aria-label={isMenuOpen ? 'Close navigation menu' : 'Open navigation menu'}
+            onClick={() => setIsMenuOpen((currentValue) => !currentValue)}
+          >
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+            <span aria-hidden="true" />
+          </button>
+        </div>
       </header>
 
       <PlaygroundConsole />
 
       <main className="page-shell">
-        <Outlet context={{ user }} />
+        <Outlet context={{ user, theme }} />
       </main>
 
       <footer className="site-footer">

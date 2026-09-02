@@ -10,6 +10,25 @@
 			content="A hands-on playground for testing forms, analytics events, consent, conversions, and UTM campaign links."
 		/>
 		<meta name="theme-color" content="#5b4df0" />
+		<script>
+			(() => {
+				let savedTheme = null;
+
+				try {
+					savedTheme = window.localStorage.getItem("tracking-playground-theme");
+				} catch {
+					// Storage can be unavailable in privacy-restricted browsing contexts.
+				}
+
+				const theme = savedTheme === "light" || savedTheme === "dark"
+					? savedTheme
+					: "light";
+
+				document.documentElement.dataset.theme = theme;
+				document.querySelector('meta[name="theme-color"]')
+					?.setAttribute("content", theme === "dark" ? "#121216" : "#5b4df0");
+			})();
+		</script>
 		<meta property="og:type" content="website" />
 		<meta property="og:title" content="Tracking Playground" />
 		<meta
