@@ -10,16 +10,16 @@ import {
   readWorkspaceContainerId,
   validateWorkspaceFile,
 } from '../utils/tagWorkspace'
+import {
+  GTM_GA4_FLOW,
+  GUIDE_EXAMPLES,
+  WORKSPACE_GLOSSARY,
+  getGuideProgress,
+  getWorkspaceGuideContext,
+} from '../utils/tagWorkspaceGuide'
 
 const CORE_FILES = new Set(['README.md', 'container.json'])
 const RUNNER_DOCUMENT = `<!doctype html><html><head><meta charset="utf-8"><meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; style-src 'unsafe-inline'; font-src 'none'; media-src 'none'; frame-src 'none'; object-src 'none'; form-action 'none'; base-uri 'none'"><style>body{margin:0;background:#101116;color:#eef0f5;font:12px ui-monospace,monospace}.box{margin:10px;padding:14px;border:1px solid #343741;border-radius:10px}.dot{color:#b6ff67}</style></head><body><div class="box"><span class="dot">●</span> Isolated runtime ready · network disabled</div><script>(()=>{let port;addEventListener('message',e=>{if(e.data?.type!=='workspace:connect'||!e.ports[0])return;port=e.ports[0];port.onmessage=m=>{if(m.data?.type!=='workspace:run')return;const payload=m.data.payload;if(!payload||typeof payload!=='object'||typeof payload.event!=='string')return;self.dataLayer=self.dataLayer||[];self.dataLayer.push(payload);port.postMessage({type:'workspace:result',nonce:m.data.nonce,payload,count:self.dataLayer.length})};port.start();port.postMessage({type:'workspace:ready',nonce:e.data.nonce})},{once:true})})()</script></body></html>`
-
-function guideForFile(name) {
-  if (name.startsWith('events/')) return ['Keep the event name GA4-compatible.', 'Use synthetic values only.', 'Format and validate before running it.']
-  if (name === 'container.json') return ['This is a safe practice model, not a GTM import.', 'The public ID labels your workspace.', 'Live container loading remains locked.']
-  if (name.startsWith('tests/')) return ['List the events you expect.', 'Compare them with runner output.', 'No file leaves this browser window.']
-  return ['Choose an event file to simulate it.', 'Create JSON or Markdown files only.', 'Download anything you want to keep.']
-}
 
 function makeCopyName(fileName, files) {
   const dot = fileName.lastIndexOf('.')
@@ -47,16 +47,20 @@ function TagWorkspacePage() {
   const [selectedFile, setSelectedFile] = useState('events/page_view.json')
   const [newFileName, setNewFileName] = useState('')
   const [isCreatingFile, setIsCreatingFile] = useState(false)
+  const [guideTab, setGuideTab] = useState('context')
   const [cursor, setCursor] = useState({ line: 1, column: 1 })
   const [runnerReady, setRunnerReady] = useState(false)
   const [output, setOutput] = useState([])
   const [notice, setNotice] = useState('')
 
   const content = files[selectedFile] || ''
-  const validation = useMemo(() => selectedFile ? validateWorkspaceFile(selectedFile, content) : { valid: false, errors: [], warnings: [] }, [content, selectedFile])
+  const validation = useMemo(() => selectedFile ? validateWorkspaceFile(selectedFile, content) : { valid: false, safeToRun: false, errors: [], warnings: [], issues: [], schemaName: 'Unknown file' }, [content, selectedFile])
   const groupedFiles = useMemo(() => groupWorkspaceFiles(Object.keys(files)), [files])
   const modifiedFiles = useMemo(() => new Set(Object.keys(files).filter((name) => starterFiles[name] !== files[name])), [files, starterFiles])
   const byteSize = useMemo(() => new Blob([content]).size, [content])
+  const guideContext = useMemo(() => getWorkspaceGuideContext(selectedFile, validation), [selectedFile, validation])
+  const guideProgress = useMemo(() => getGuideProgress({ selectedFile, validation, modified: modifiedFiles.has(selectedFile), output }), [modifiedFiles, output, selectedFile, validation])
+  const completedGuideSteps = guideProgress.filter((step) => step.complete).length
 
   useEffect(() => () => runnerPortRef.current?.close(), [])
 
@@ -149,6 +153,15 @@ function TagWorkspacePage() {
     setNotice(`${name} created.`)
   }
 
+  function addGuideExample(example) {
+    const name = `events/example-${example.id}.json`
+    if (!files[name] && Object.keys(files).length >= WORKSPACE_MAX_FILES) return setNotice('The workspace is limited to 40 files.')
+    if (!files[name]) setFiles((current) => ({ ...current, [name]: `${JSON.stringify(example.payload, null, 2)}\n` }))
+    selectFile(name)
+    setGuideTab('context')
+    setNotice(`${example.label} example added as ${name}.`)
+  }
+
   function downloadFile() {
     const url = URL.createObjectURL(new Blob([content], { type: selectedFile.endsWith('.json') ? 'application/json' : 'text/markdown' }))
     const link = document.createElement('a')
@@ -167,7 +180,7 @@ function TagWorkspacePage() {
   }
 
   function runEvent() {
-    if (!selectedFile.startsWith('events/') || !validation.valid || validation.warnings.length || !runnerReady) return
+    if (!selectedFile.startsWith('events/') || !validation.safeToRun || !runnerReady) return
     runnerPortRef.current?.postMessage({ type: 'workspace:run', nonce: nonceRef.current, payload: validation.value })
     setNotice(`${validation.value.event} ran inside the offline simulator.`)
   }
@@ -194,12 +207,44 @@ function TagWorkspacePage() {
           <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
           <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
           <div className="workspace-editor-status"><span className={validation.valid ? 'is-valid' : 'is-invalid'}>{validation.valid ? '● Valid' : '● Invalid'}</span><span>{selectedFile.endsWith('.json') ? 'JSON' : 'Markdown'}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>{content.length.toLocaleString()} chars</span><span>{byteSize.toLocaleString()} bytes</span></div>
-          <div className={`workspace-validation ${validation.valid ? 'is-valid' : 'is-invalid'}`}><strong>{validation.valid ? validation.warnings.length ? 'Valid with safety warnings' : 'Ready' : 'Needs attention'}</strong>{validation.errors.map((item) => <span key={item}>{item}</span>)}{validation.warnings.map((item) => <span className="is-warning" key={item}>{item}</span>)}{validation.valid && !validation.warnings.length && <span>No structural or sensitive-data issues detected.</span>}</div>
+          <div className={`workspace-validation ${validation.safeToRun ? 'is-valid' : 'is-invalid'}`}>
+            <div className="workspace-validation-summary"><div><strong>{validation.safeToRun ? 'Safe to run' : validation.valid ? 'Review required' : 'Blocked'}</strong><span>{validation.schemaName}</span></div><div><span><b>{validation.errors.length}</b> errors</span><span><b>{validation.warnings.length}</b> warnings</span></div></div>
+            {validation.issues.length ? <ul className="workspace-issue-list">{validation.issues.map((issue) => <li className={`is-${issue.severity}`} key={`${issue.code}-${issue.path}`}><span className={`workspace-issue-category is-${issue.category}`}>{issue.category}</span><code>{issue.path}</code><p>{issue.message}</p></li>)}</ul> : <span className="workspace-validation-clear">✓ Schema, dangerous keys, credentials, and personal data checked.</span>}
+          </div>
         </section>
 
-        <aside className="workspace-guide"><p className="eyebrow">Context guide</p><h2>Working with {selectedFile.split('/').pop()}</h2><ol>{guideForFile(selectedFile).map((item) => <li key={item}>{item}</li>)}</ol><div className="workspace-shortcuts"><strong>Editor shortcuts</strong><span><kbd>Tab</kbd> Insert two spaces</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> Format JSON</span></div><div className="workspace-live-lock"><strong>Why is Live GTM locked?</strong><p>The virtual file model and isolated runner must prove their limits first. A future phase can add a separately consented network mode.</p></div></aside>
+        <aside className="workspace-guide" aria-label="Contextual GTM and GA4 guide">
+          <div className="workspace-guide-heading"><div><p className="eyebrow">Learn in context</p><h2>GTM + GA4 guide</h2></div><span>{completedGuideSteps}/4</span></div>
+          <div className="workspace-guide-tabs" role="tablist" aria-label="Guide views">
+            {[['context','This file'],['flow','Flow'],['examples','Examples'],['reference','Terms']].map(([id, label]) => <button type="button" role="tab" aria-selected={guideTab === id} className={guideTab === id ? 'is-active' : ''} onClick={() => setGuideTab(id)} key={id}>{label}</button>)}
+          </div>
 
-        <section className="workspace-runner"><div><p className="eyebrow">Isolated runner</p><h2>Offline dataLayer simulator</h2><p aria-live="polite">{notice || 'Choose a valid event file. Warnings must be resolved before it can run.'}</p><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.valid || validation.warnings.length > 0 || !runnerReady}>Run selected event</button></div><iframe ref={iframeRef} title="Network-disabled dataLayer runtime" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={RUNNER_DOCUMENT} onLoad={connectRunner} /><div className="workspace-output"><strong>Runner output</strong>{output.length ? output.map((item, index) => <pre key={`${item.count}-${index}`}>{JSON.stringify(item.payload, null, 2)}</pre>) : <span>No events run yet.</span>}</div></section>
+          {guideTab === 'context' && <div className="workspace-guide-panel" role="tabpanel">
+            <div className="workspace-guide-progress"><div><strong>Practice progress</strong><span>{completedGuideSteps * 25}%</span></div><i><b style={{ width: `${completedGuideSteps * 25}%` }} /></i><ul>{guideProgress.map((step) => <li className={step.complete ? 'is-complete' : ''} key={step.label}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span>{step.label}</li>)}</ul></div>
+            <p className="eyebrow">{guideContext.kicker}</p><h3>{guideContext.title}</h3><p>{guideContext.summary}</p>
+            <ol className="workspace-guide-steps">{guideContext.steps.map((step, index) => <li key={step.title}><span>{index + 1}</span><div><strong>{step.title}</strong><p>{step.detail}</p></div></li>)}</ol>
+            <div className="workspace-shortcuts"><strong>Editor shortcuts</strong><span><kbd>Tab</kbd> Insert two spaces</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> Format JSON</span></div>
+          </div>}
+
+          {guideTab === 'flow' && <div className="workspace-guide-panel" role="tabpanel">
+            <p className="eyebrow">End-to-end map</p><h3>From website to DebugView</h3><p>The offline runner covers the first step. GTM and GA4 remain conceptual until Live GTM is approved.</p>
+            <ol className="workspace-flow-list">{GTM_GA4_FLOW.map((step, index) => <li className={index === 0 ? 'is-active' : ''} key={step.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{step.label}</strong><p>{step.detail}</p></div>{index < GTM_GA4_FLOW.length - 1 && <i aria-hidden="true">↓</i>}</li>)}</ol>
+            {validation.value?.event && <div className="workspace-guide-code"><span>Your trigger name</span><code>{validation.value.event}</code></div>}
+          </div>}
+
+          {guideTab === 'examples' && <div className="workspace-guide-panel" role="tabpanel">
+            <p className="eyebrow">Safe starter payloads</p><h3>Add an example file</h3><p>Examples use synthetic values and open as a new file, so they never overwrite your work.</p>
+            <div className="workspace-guide-examples">{GUIDE_EXAMPLES.map((example) => <article key={example.id}><div><strong>{example.label}</strong><code>{example.id}</code></div><p>{example.description}</p><button type="button" aria-label={`${files[`events/example-${example.id}.json`] ? 'Open' : 'Add'} ${example.label} example${files[`events/example-${example.id}.json`] ? '' : ' to workspace'}`} onClick={() => addGuideExample(example)}>{files[`events/example-${example.id}.json`] ? 'Open example' : 'Add to workspace'}</button></article>)}</div>
+          </div>}
+
+          {guideTab === 'reference' && <div className="workspace-guide-panel" role="tabpanel">
+            <p className="eyebrow">Plain-language reference</p><h3>Terms you will use</h3>
+            <dl className="workspace-glossary">{WORKSPACE_GLOSSARY.map((item) => <div key={item.term}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl>
+            <div className="workspace-live-lock"><strong>Live GTM remains locked</strong><p>Nothing here contacts GTM or GA4. The isolated runner must be proven before a separately consented network mode is considered.</p></div>
+          </div>}
+        </aside>
+
+        <section className="workspace-runner"><div><p className="eyebrow">Isolated runner</p><h2>Offline dataLayer simulator</h2><p aria-live="polite">{notice || 'Choose a valid event file. Every validation check must pass before it can run.'}</p><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.safeToRun || !runnerReady}>Run selected event</button></div><iframe ref={iframeRef} title="Network-disabled dataLayer runtime" sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={RUNNER_DOCUMENT} onLoad={connectRunner} /><div className="workspace-output"><strong>Runner output</strong>{output.length ? output.map((item, index) => <pre key={`${item.count}-${index}`}>{JSON.stringify(item.payload, null, 2)}</pre>) : <span>No events run yet.</span>}</div></section>
       </div>
       <footer className="workspace-footer"><button type="button" onClick={() => { setFiles(starterFiles); selectFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>

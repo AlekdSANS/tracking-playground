@@ -13,6 +13,7 @@ import {
   readWorkspaceContainerId,
   validateWorkspaceFile,
 } from '../utils/tagWorkspace'
+import { getGuideProgress, getWorkspaceGuideContext } from '../utils/tagWorkspaceGuide'
 
 function renderApp(initialEntries = ['/']) {
   return render(
@@ -584,7 +585,7 @@ test('renders the workspace without the site shell or tracking console', () => {
 
   expect(screen.getByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
   expect(screen.getByRole('complementary', { name: /virtual project files/i })).toBeInTheDocument()
-  expect(screen.getAllByText(/live gtm locked/i)).toHaveLength(2)
+  expect(screen.getByText(/^live gtm locked$/i)).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
 })
@@ -612,4 +613,96 @@ test('creates and edits a virtual event file in memory', async () => {
   await user.click(screen.getByRole('button', { name: /^format$/i }))
   expect(editor.value).toContain('\n  "event": "sign_up"')
   expect(screen.getByText(/1 changed/i)).toBeInTheDocument()
+})
+
+test('applies schemas for event, container, and expectation files', () => {
+  const badEvent = validateWorkspaceFile(
+    'events/bad.json',
+    '{"event":"9 invalid","bad-param":true}',
+  )
+  expect(badEvent.valid).toBe(false)
+  expect(badEvent.schemaName).toBe('GA4 event')
+  expect(badEvent.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({ category: 'schema', path: '$.event', severity: 'error' }),
+    expect.objectContaining({ category: 'schema', path: '$["bad-param"]', severity: 'error' }),
+  ]))
+
+  const badContainer = validateWorkspaceFile(
+    'container.json',
+    '{"containerVersion":{"container":{"publicId":"G-INVALID","name":""}}}',
+  )
+  expect(badContainer.errors.join(' ')).toMatch(/valid GTM-|needs a name/i)
+
+  const duplicateTest = validateWorkspaceFile(
+    'tests/events.json',
+    '{"expected":["page_view","page_view"]}',
+  )
+  expect(duplicateTest.valid).toBe(true)
+  expect(duplicateTest.safeToRun).toBe(false)
+  expect(duplicateTest.warnings.join(' ')).toMatch(/duplicate/i)
+})
+
+test('reports dangerous keys, PII, and credentials with safe paths', () => {
+  const result = validateWorkspaceFile(
+    'events/private.json',
+    JSON.stringify({
+      event: 'generate_lead',
+      customer: {
+        email: 'person@example.com',
+        ip: '192.168.1.25',
+        authorization: 'Bearer abcdefghijklmnopqrstuvwxyz',
+      },
+    }).replace('"customer"', '"__proto__"'),
+  )
+
+  expect(result.valid).toBe(false)
+  expect(result.safeToRun).toBe(false)
+  expect(result.issues).toEqual(expect.arrayContaining([
+    expect.objectContaining({ category: 'security', code: 'dangerous-key', severity: 'error' }),
+    expect.objectContaining({ category: 'privacy', code: 'pii-email', path: '$.__proto__.email' }),
+    expect.objectContaining({ category: 'privacy', code: 'pii-ip', path: '$.__proto__.ip' }),
+    expect.objectContaining({ category: 'credential', code: 'secret-bearer' }),
+  ]))
+})
+
+test('scans Markdown for personal data without parsing it as JSON', () => {
+  const result = validateWorkspaceFile('notes.md', 'Call +48 123 456 789 or person@example.com')
+
+  expect(result.valid).toBe(true)
+  expect(result.safeToRun).toBe(false)
+  expect(result.schemaName).toBe('Markdown document')
+  expect(result.warnings.join(' ')).toMatch(/email address|phone number/i)
+})
+
+test('builds contextual guidance and learning progress from workspace state', () => {
+  const validation = validateWorkspaceFile('events/lead.json', '{"event":"generate_lead"}')
+  const context = getWorkspaceGuideContext('events/lead.json', validation)
+  const progress = getGuideProgress({
+    selectedFile: 'events/lead.json',
+    validation,
+    modified: true,
+    output: [{ payload: { event: 'generate_lead' } }],
+  })
+
+  expect(context.title).toBe('Build generate_lead')
+  expect(context.steps.map((step) => step.title).join(' ')).toMatch(/run the simulation|recreate it in GTM/i)
+  expect(progress.every((step) => step.complete)).toBe(true)
+})
+
+test('shows the GTM to GA4 flow and adds safe guide examples', async () => {
+  const user = userEvent.setup()
+  renderApp(['/tag-workspace#container=GTM-TEST99'])
+
+  expect(screen.getByRole('complementary', { name: /contextual gtm and ga4 guide/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /build page_view/i })).toBeInTheDocument()
+
+  await user.click(screen.getByRole('tab', { name: /^flow$/i }))
+  expect(screen.getByRole('heading', { name: /from website to debugview/i })).toBeInTheDocument()
+  expect(screen.getByText('page_view')).toBeInTheDocument()
+
+  await user.click(screen.getByRole('tab', { name: /^examples$/i }))
+  await user.click(screen.getByRole('button', { name: /add sign up example to workspace/i }))
+
+  expect(screen.getByRole('textbox', { name: /edit events\/example-sign_up.json/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /build sign_up/i })).toBeInTheDocument()
 })
