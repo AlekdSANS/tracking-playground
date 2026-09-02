@@ -14,6 +14,7 @@ import {
   validateWorkspaceFile,
 } from '../utils/tagWorkspace'
 import { getGuideProgress, getWorkspaceGuideContext } from '../utils/tagWorkspaceGuide'
+import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS, createSimulationSummary } from '../utils/tagRunner'
 
 function renderApp(initialEntries = ['/']) {
   return render(
@@ -705,4 +706,36 @@ test('shows the GTM to GA4 flow and adds safe guide examples', async () => {
 
   expect(screen.getByRole('textbox', { name: /edit events\/example-sign_up.json/i })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /build sign_up/i })).toBeInTheDocument()
+})
+
+test('defines a network-disabled single-use runner contract', () => {
+  expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/connect-src 'none'/)
+  expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/worker-src 'none'/)
+  expect(DISPOSABLE_RUNNER_DOCUMENT).not.toMatch(/googletagmanager|google-analytics/i)
+  expect(RUNNER_TIMEOUT_MS).toBe(4000)
+  expect(createSimulationSummary({ event: 'sign_up', method: 'practice', debug_mode: true })).toEqual({
+    triggerName: 'sign_up',
+    parameterNames: ['method', 'debug_mode'],
+    parameterCount: 2,
+    dataLayerLength: 1,
+    networkRequests: 0,
+  })
+})
+
+test('creates and destroys a disposable runner iframe for each run', async () => {
+  const user = userEvent.setup()
+  renderApp(['/tag-workspace#container=GTM-TEST99'])
+
+  expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
+  await user.click(screen.getByRole('button', { name: /run in fresh sandbox/i }))
+
+  const runner = screen.getByTitle(/disposable datalayer runtime run-1/i)
+  expect(runner).toHaveAttribute('sandbox', 'allow-scripts')
+  expect(runner.getAttribute('srcdoc')).toMatch(/connect-src 'none'/)
+  expect(screen.getByText(/this frame will be removed after one result/i)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /cancel and dispose/i }))
+  expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
+  expect(screen.getAllByText(/^cancelled$/i)).toHaveLength(2)
+  expect(screen.getByText(/no result retained for this disposed run/i)).toBeInTheDocument()
 })
