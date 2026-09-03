@@ -25,7 +25,7 @@ The project goes beyond isolated button-click demos. It combines a Vite frontend
 | **Analytics** | Consent-aware `dataLayer` events, page views, conversion outcomes, and attribution parameters |
 | **Campaigns** | UTM link builder with editable channels, custom parameters, copy, and open actions |
 | **Conversions** | Contact, callback, and newsletter flows with success and error tracking |
-| **Authentication** | Neon PostgreSQL-backed registration, login, logout, signed sessions, and role-aware UI |
+| **Authentication** | Neon PostgreSQL-backed registration, email verification, login, logout, signed sessions, and role-aware UI |
 | **Validation** | Country-aware phone formatting plus live email format and typo feedback |
 | **Email** | Resend-powered form delivery through Vercel API routes |
 | **Diagnostics** | Admin-only event inspector, test events, random form data, and simulated failures |
@@ -126,7 +126,9 @@ Add these values to `.env.local` for development and to the Vercel project setti
 | --- | --- |
 | `DATABASE_URL` | Pooled Neon PostgreSQL connection string |
 | `SESSION_SECRET` | Long random value used to sign authentication sessions |
+| `APP_URL` | Public application origin used in email-verification links |
 | `RESEND_API_KEY` | Resend credential for form emails |
+| `AUTH_FROM_EMAIL` | Verified sender used for account-verification emails |
 | `CONTACT_TO_EMAIL` | Recipient for form submissions |
 | `CONTACT_FROM_EMAIL` | Verified sender or Resend test sender |
 | `GTM_GOOGLE_CLIENT_ID` | Google OAuth web-client ID with the Tag Manager API enabled |
@@ -137,7 +139,9 @@ Add these values to `.env.local` for development and to the Vercel project setti
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@YOUR-ENDPOINT-pooler.REGION.aws.neon.tech/neondb?sslmode=require
 SESSION_SECRET=replace-this-with-a-long-random-secret
+APP_URL=http://localhost:3000
 RESEND_API_KEY=re_your_resend_api_key
+AUTH_FROM_EMAIL=Tracking Playground <onboarding@resend.dev>
 CONTACT_TO_EMAIL=you@example.com
 CONTACT_FROM_EMAIL=onboarding@resend.dev
 GTM_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
@@ -148,7 +152,9 @@ GTM_OAUTH_COOKIE_SECRET=replace-with-at-least-32-random-characters
 
 Never commit `.env.local`. Resend's test sender generally delivers only to the email associated with the Resend account; use a verified domain for production delivery.
 
-Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQL Editor. Keep `SESSION_SECRET` unchanged when moving an existing deployment so already-issued session cookies remain valid. Existing MongoDB password hashes can be copied into the `pass` column without modification.
+Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQL Editor. It is safe to run again after an earlier version of the schema because the email-verification columns are added idempotently. Keep `SESSION_SECRET` unchanged when moving an existing deployment so already-issued session cookies remain valid. Existing MongoDB password hashes can be copied into the `pass` column without modification.
+
+New accounts receive a verification link that expires after 24 hours and cannot log in until it is used. Resend requests are limited to one database token refresh per minute and always return the same public response. Accounts created before email verification was enabled must have `email` backfilled and `email_verified_at` set before they can log in; after backfilling every legacy account, set the column requirement with `ALTER TABLE users ALTER COLUMN email SET NOT NULL;`.
 
 The Tag Lab API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
 

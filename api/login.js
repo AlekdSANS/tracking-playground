@@ -43,6 +43,14 @@ export default async function handler(req, res) {
       return
     }
 
+    if (!user.email_verified_at) {
+      json(res, 403, {
+        error: 'Verify your email address before logging in.',
+        code: 'EMAIL_NOT_VERIFIED',
+      })
+      return
+    }
+
     setSessionCookie(res, createSessionToken(user))
     json(res, 200, { user: serializeUser(user) })
   } catch (error) {

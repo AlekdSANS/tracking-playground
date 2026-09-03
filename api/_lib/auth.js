@@ -8,6 +8,7 @@ const TOKEN_TTL_SECONDS = 60 * 60 * 24 * 7
 const HASH_ITERATIONS = 310000
 const HASH_KEY_LENGTH = 32
 const HASH_DIGEST = 'sha256'
+const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000
 
 function getSessionSecret() {
   const secret = process.env.SESSION_SECRET
@@ -99,6 +100,20 @@ export function verifyPassword(password, storedHash) {
   return timingSafeEqual(candidate, hash)
 }
 
+export function createEmailVerificationToken(now = Date.now()) {
+  const token = crypto.randomBytes(32).toString('base64url')
+
+  return {
+    token,
+    tokenHash: hashEmailVerificationToken(token),
+    expiresAt: new Date(now + EMAIL_VERIFICATION_TTL_MS),
+  }
+}
+
+export function hashEmailVerificationToken(token) {
+  return crypto.createHash('sha256').update(String(token || '')).digest('hex')
+}
+
 export function createSessionToken(user) {
   const header = toBase64Url(JSON.stringify({ alg: 'HS256', typ: 'JWT' }))
   const payload = toBase64Url(
@@ -106,6 +121,8 @@ export function createSessionToken(user) {
       sub: user.user_id || user._id.toString(),
       login: user.login,
       name: user.name || '',
+      email: user.email || '',
+      email_verified: Boolean(user.email_verified_at || user.email_verified),
       admin_status: Number(user.admin_status) === 1 ? 1 : 0,
       exp: Math.floor(Date.now() / 1000) + TOKEN_TTL_SECONDS,
     }),
@@ -181,6 +198,8 @@ export function serializeUser(user) {
     user_id: user.user_id || user._id?.toString() || user.sub,
     login: user.login,
     name: user.name || '',
+    email: user.email || '',
+    email_verified: Boolean(user.email_verified_at || user.email_verified),
     admin_status: Number(user.admin_status) === 1 ? 1 : 0,
   }
 }

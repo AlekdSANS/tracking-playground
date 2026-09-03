@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { trackAuthError, trackAuthSuccess, trackLogout } from '../utils/analytics'
 
 async function requestAuth(path, body) {
@@ -31,6 +32,10 @@ function getAuthErrorType(message) {
     return 'invalid_credentials'
   }
 
+  if (normalizedMessage.includes('verify your email')) {
+    return 'unverified_email'
+  }
+
   if (normalizedMessage.includes('3-32') || normalizedMessage.includes('8 characters')) {
     return 'validation_error'
   }
@@ -50,13 +55,31 @@ function getAuthErrorType(message) {
 }
 
 function AuthPage() {
+  const [searchParams] = useSearchParams()
+  const verificationResult = searchParams.get('verification')
   const [mode, setMode] = useState('login')
   const [user, setUser] = useState(null)
   const [name, setName] = useState('')
+  const [email, setEmail] = useState('')
   const [login, setLogin] = useState('')
   const [password, setPassword] = useState('')
-  const [status, setStatus] = useState('')
+  const [status, setStatus] = useState(() => {
+    if (verificationResult === 'success') {
+      return 'Email verified. You can now log in.'
+    }
+
+    if (verificationResult === 'invalid') {
+      return 'That verification link is invalid or expired. Request a new one.'
+    }
+
+    if (verificationResult === 'error') {
+      return 'Email verification is temporarily unavailable. Try again.'
+    }
+
+    return ''
+  })
   const [loading, setLoading] = useState(false)
+  const [canResend, setCanResend] = useState(verificationResult === 'invalid')
 
   useEffect(() => {
     let active = true
@@ -85,10 +108,20 @@ function AuthPage() {
         mode === 'login' ? '/api/login' : '/api/register',
         {
           name,
+          email,
           login,
           password,
         },
       )
+
+      if (data.verificationRequired) {
+        trackAuthSuccess(mode, data.user)
+        setMode('login')
+        setPassword('')
+        setCanResend(true)
+        setStatus(data.message)
+        return
+      }
 
       setUser(data.user)
       window.dispatchEvent(new CustomEvent('auth:user-changed', { detail: data.user }))
@@ -97,6 +130,22 @@ function AuthPage() {
       setStatus(mode === 'login' ? 'Logged in.' : 'Account created.')
     } catch (error) {
       trackAuthError(mode, getAuthErrorType(error.message))
+      setCanResend(error.message.toLowerCase().includes('verify your email'))
+      setStatus(error.message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  async function handleResendConfirmation(event) {
+    event.preventDefault()
+    setLoading(true)
+    setStatus('')
+
+    try {
+      const data = await requestAuth('/api/resend-confirmation', { email })
+      setStatus(data.message)
+    } catch (error) {
       setStatus(error.message)
     } finally {
       setLoading(false)
@@ -137,6 +186,7 @@ function AuthPage() {
               {user.name ? `${user.name} ` : ''}
               {user.login}
             </p>
+            <p className="muted">{user.email}</p>
             <p className="muted">
               {user.admin_status === 1 ? 'Admin account' : 'Basic account'}
             </p>
@@ -158,6 +208,7 @@ function AuthPage() {
                 onClick={() => {
                   setMode('login')
                   setStatus('')
+                  setCanResend(false)
                 }}
               >
                 Log in
@@ -168,6 +219,7 @@ function AuthPage() {
                 onClick={() => {
                   setMode('register')
                   setStatus('')
+                  setCanResend(false)
                 }}
               >
                 Register
@@ -176,15 +228,27 @@ function AuthPage() {
 
             <form className="auth-form" onSubmit={handleSubmit}>
               {mode === 'register' && (
-                <label className="field">
-                  Name
-                  <input
-                    type="text"
-                    value={name}
-                    onChange={(event) => setName(event.target.value)}
-                    autoComplete="name"
-                  />
-                </label>
+                <>
+                  <label className="field">
+                    Name
+                    <input
+                      type="text"
+                      value={name}
+                      onChange={(event) => setName(event.target.value)}
+                      autoComplete="name"
+                    />
+                  </label>
+                  <label className="field">
+                    Email
+                    <input
+                      type="email"
+                      value={email}
+                      onChange={(event) => setEmail(event.target.value)}
+                      autoComplete="email"
+                      required
+                    />
+                  </label>
+                </>
               )}
 
               <label className="field">
@@ -214,6 +278,24 @@ function AuthPage() {
                 {mode === 'login' ? 'Log in' : 'Create account'}
               </button>
             </form>
+
+            {canResend && mode === 'login' && (
+              <form className="auth-form" onSubmit={handleResendConfirmation}>
+                <label className="field">
+                  Account email
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(event) => setEmail(event.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </label>
+                <button type="submit" className="secondary-button" disabled={loading}>
+                  Resend verification email
+                </button>
+              </form>
+            )}
           </>
         )}
 
