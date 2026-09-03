@@ -1,4 +1,4 @@
-import { getUsersCollection } from './_lib/mongodb.js'
+import { findUserByLogin } from './_lib/postgres.js'
 import {
   createSessionToken,
   json,
@@ -9,17 +9,17 @@ import {
 } from './_lib/auth.js'
 
 function getLoginErrorMessage(error) {
-  if (error.message === 'MONGODB_URI is not configured') {
-    return 'MongoDB is not configured.'
+  if (error.message === 'DATABASE_URL is not configured') {
+    return 'PostgreSQL is not configured.'
   }
 
   if (
-    error.name === 'MongoServerSelectionError' ||
-    error.message?.includes('querySrv') ||
+    error.code === 'CONNECT_TIMEOUT' ||
+    error.code === 'ECONNREFUSED' ||
     error.message?.includes('timed out') ||
     error.message?.includes('ENOTFOUND')
   ) {
-    return 'Public access is restricted right now. Ask an admin for permission.'
+    return 'The database is temporarily unavailable.'
   }
 
   return 'Could not log in.'
@@ -36,8 +36,7 @@ export default async function handler(req, res) {
     const login = String(body.login || '').trim().toLowerCase()
     const password = String(body.password || '')
 
-    const users = await getUsersCollection()
-    const user = await users.findOne({ login })
+    const user = await findUserByLogin(login)
 
     if (!user || !verifyPassword(password, user.pass)) {
       json(res, 401, { error: 'Login or password is incorrect.' })

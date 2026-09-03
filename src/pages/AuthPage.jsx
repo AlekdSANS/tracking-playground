@@ -39,7 +39,10 @@ function getAuthErrorType(message) {
     return 'restricted_access'
   }
 
-  if (normalizedMessage.includes('mongodb')) {
+  if (
+    normalizedMessage.includes('postgresql')
+    || normalizedMessage.includes('database is temporarily unavailable')
+  ) {
     return 'configuration_error'
   }
 
@@ -122,7 +125,7 @@ function AuthPage() {
       <div className="page-intro">
         <h1>Login system</h1>
         <p>
-          Create an account or log in using the MongoDB-backed API routes.
+          Create an account or log in using the Neon PostgreSQL-backed API routes.
         </p>
       </div>
 

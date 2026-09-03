@@ -16,7 +16,7 @@
 
 Conversion Tracking is a compact React application built to practise analytics implementation in realistic user journeys. Visitors can navigate campaign links, manage analytics consent, submit forms, and register or log in while the application sends structured events through `window.dataLayer`.
 
-The project goes beyond isolated button-click demos. It combines a Vite frontend with Vercel Functions, MongoDB-backed authentication, email delivery, form validation, UTM tooling, and admin-only diagnostics to create an end-to-end tracking sandbox.
+The project goes beyond isolated button-click demos. It combines a Vite frontend with Vercel Functions, Neon PostgreSQL-backed authentication, email delivery, form validation, UTM tooling, and admin-only diagnostics to create an end-to-end tracking sandbox.
 
 ## Features
 
@@ -25,7 +25,7 @@ The project goes beyond isolated button-click demos. It combines a Vite frontend
 | **Analytics** | Consent-aware `dataLayer` events, page views, conversion outcomes, and attribution parameters |
 | **Campaigns** | UTM link builder with editable channels, custom parameters, copy, and open actions |
 | **Conversions** | Contact, callback, and newsletter flows with success and error tracking |
-| **Authentication** | MongoDB-backed registration, login, logout, signed sessions, and role-aware UI |
+| **Authentication** | Neon PostgreSQL-backed registration, login, logout, signed sessions, and role-aware UI |
 | **Validation** | Country-aware phone formatting plus live email format and typo feedback |
 | **Email** | Resend-powered form delivery through Vercel API routes |
 | **Diagnostics** | Admin-only event inspector, test events, random form data, and simulated failures |
@@ -51,7 +51,7 @@ Custom analytics events are withheld until analytics consent is granted. Once al
 [![React](https://img.shields.io/badge/React_19-20232A?style=flat-square&logo=react&logoColor=61DAFB)](https://react.dev/)
 [![React Router](https://img.shields.io/badge/React_Router_7-CA4245?style=flat-square&logo=reactrouter&logoColor=white)](https://reactrouter.com/)
 [![Node.js](https://img.shields.io/badge/Node.js-5FA04E?style=flat-square&logo=nodedotjs&logoColor=white)](https://nodejs.org/)
-[![MongoDB](https://img.shields.io/badge/MongoDB-47A248?style=flat-square&logo=mongodb&logoColor=white)](https://www.mongodb.com/)
+[![Neon](https://img.shields.io/badge/Neon_PostgreSQL-00E699?style=flat-square&logo=postgresql&logoColor=white)](https://neon.com/)
 [![Vercel](https://img.shields.io/badge/Vercel_Functions-000000?style=flat-square&logo=vercel&logoColor=white)](https://vercel.com/docs/functions)
 [![Resend](https://img.shields.io/badge/Resend-000000?style=flat-square&logo=resend&logoColor=white)](https://resend.com/)
 [![Google Tag Manager](https://img.shields.io/badge/Google_Tag_Manager-246FDB?style=flat-square&logo=googletagmanager&logoColor=white)](https://tagmanager.google.com/)
@@ -63,7 +63,7 @@ Custom analytics events are withheld until analytics consent is granted. Once al
 | Interface | React 19, React Router, CSS |
 | Development | Vite 8, ESLint |
 | API | Node.js, Vercel Functions |
-| Data and auth | MongoDB Atlas, HTTP-only cookies, Web Crypto / Node crypto APIs |
+| Data and auth | Neon PostgreSQL, HTTP-only cookies, Web Crypto / Node crypto APIs |
 | Forms and email | `libphonenumber-js`, Resend |
 | Analytics | Google Tag Manager, GA4, Google Ads-style conversions |
 | Testing | Vitest, Testing Library, user-event, jsdom |
@@ -103,7 +103,7 @@ Events can include contextual parameters such as `page_path`, `traffic_source`, 
 
 - A current Node.js release
 - npm
-- MongoDB Atlas credentials for authentication features
+- A Neon PostgreSQL database for authentication features
 - A Resend API key for email delivery
 
 ### Installation
@@ -124,8 +124,7 @@ Add these values to `.env.local` for development and to the Vercel project setti
 
 | Variable | Purpose |
 | --- | --- |
-| `MONGODB_URI` | MongoDB Atlas connection string |
-| `MONGODB_DB` | Database name; defaults to `analytics_practice` |
+| `DATABASE_URL` | Pooled Neon PostgreSQL connection string |
 | `SESSION_SECRET` | Long random value used to sign authentication sessions |
 | `RESEND_API_KEY` | Resend credential for form emails |
 | `CONTACT_TO_EMAIL` | Recipient for form submissions |
@@ -136,8 +135,7 @@ Add these values to `.env.local` for development and to the Vercel project setti
 | `GTM_OAUTH_COOKIE_SECRET` | Random value of at least 32 characters used to encrypt short-lived GTM access cookies |
 
 ```env
-MONGODB_URI=mongodb+srv://USER:PASSWORD@cluster.example.mongodb.net/?retryWrites=true&w=majority
-MONGODB_DB=analytics_practice
+DATABASE_URL=postgresql://USER:PASSWORD@YOUR-ENDPOINT-pooler.REGION.aws.neon.tech/neondb?sslmode=require
 SESSION_SECRET=replace-this-with-a-long-random-secret
 RESEND_API_KEY=re_your_resend_api_key
 CONTACT_TO_EMAIL=you@example.com
@@ -149,6 +147,8 @@ GTM_OAUTH_COOKIE_SECRET=replace-with-at-least-32-random-characters
 ```
 
 Never commit `.env.local`. Resend's test sender generally delivers only to the email associated with the Resend account; use a verified domain for production delivery.
+
+Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQL Editor. Keep `SESSION_SECRET` unchanged when moving an existing deployment so already-issued session cookies remain valid. Existing MongoDB password hashes can be copied into the `pass` column without modification.
 
 The Tag Lab API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
 
@@ -195,7 +195,7 @@ The first registered user receives `admin_status: 1`; later users receive `admin
 
 ## Deployment and security
 
-The repository is configured for Vercel deployment with SPA rewrites and serverless API routes. Add every environment variable in Vercel, allow the deployment to connect through MongoDB Atlas Network Access, and redeploy after changing environment values.
+The repository is configured for Vercel deployment with SPA rewrites and serverless API routes. Add every environment variable in Vercel, use Neon's pooled connection string for `DATABASE_URL`, and redeploy after changing environment values.
 
 - Passwords are salted and hashed before storage.
 - Authentication uses a signed HTTP-only cookie.

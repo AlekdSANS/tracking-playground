@@ -1,5 +1,4 @@
-import { ObjectId } from 'mongodb'
-import { getUsersCollection } from './_lib/mongodb.js'
+import { createUser, isDuplicateLoginError } from './_lib/postgres.js'
 import {
   createSessionToken,
   hashPassword,
@@ -14,17 +13,17 @@ function isValidLogin(login) {
 }
 
 function getRegisterErrorMessage(error) {
-  if (error.message === 'MONGODB_URI is not configured') {
-    return 'MongoDB is not configured.'
+  if (error.message === 'DATABASE_URL is not configured') {
+    return 'PostgreSQL is not configured.'
   }
 
   if (
-    error.name === 'MongoServerSelectionError' ||
-    error.message?.includes('querySrv') ||
+    error.code === 'CONNECT_TIMEOUT' ||
+    error.code === 'ECONNREFUSED' ||
     error.message?.includes('timed out') ||
     error.message?.includes('ENOTFOUND')
   ) {
-    return 'Public access is restricted right now. Ask an admin for permission.'
+    return 'The database is temporarily unavailable.'
   }
 
   return 'Could not create account.'
@@ -50,32 +49,16 @@ export default async function handler(req, res) {
       return
     }
 
-    const users = await getUsersCollection()
-    const now = new Date()
-    const existingUsers = await users.estimatedDocumentCount()
-    const userObjectId = new ObjectId()
-    const result = await users.insertOne({
-      _id: userObjectId,
-      user_id: userObjectId.toString(),
+    const user = await createUser({
       login,
       name,
       pass: hashPassword(password),
-      admin_status: existingUsers === 0 ? 1 : 0,
-      createdAt: now,
-      updatedAt: now,
     })
-    const user = {
-      _id: result.insertedId,
-      user_id: result.insertedId.toString(),
-      login,
-      name,
-      admin_status: existingUsers === 0 ? 1 : 0,
-    }
 
     setSessionCookie(res, createSessionToken(user))
     json(res, 201, { user: serializeUser(user) })
   } catch (error) {
-    if (error.code === 11000) {
+    if (isDuplicateLoginError(error)) {
       json(res, 409, { error: 'An account with this login already exists.' })
       return
     }
