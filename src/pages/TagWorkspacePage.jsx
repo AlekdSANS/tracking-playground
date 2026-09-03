@@ -20,6 +20,7 @@ import {
   getWorkspaceGuideContext,
 } from '../utils/tagWorkspaceGuide'
 import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS } from '../utils/tagRunner'
+import { compareWorkspaceToGtm } from '../utils/gtmAudit'
 
 const CORE_FILES = new Set(['README.md', 'container.json'])
 
@@ -233,18 +234,21 @@ function TagWorkspacePage() {
   }
 
   function importGtmSnapshot(snapshot) {
+    const comparison = compareWorkspaceToGtm(files, snapshot)
     const safeSnapshot = {
-      schema: 'tracking-playground/gtm-api-snapshot/v1',
+      schema: 'tracking-playground/gtm-api-snapshot/v2',
       importedAt: new Date().toISOString(),
       readOnly: true,
       account: snapshot.account,
       containerVersion: { container: snapshot.container },
       workspaces: snapshot.workspaces,
+      audit: snapshot.audit,
+      comparison,
     }
     setFiles((current) => ({ ...current, 'container.json': `${JSON.stringify(safeSnapshot, null, 2)}\n` }))
     setSelectedFile('container.json')
     setCursor({ line: 1, column: 1 })
-    setNotice(`${snapshot.container.publicId} metadata imported locally. No OAuth token was copied.`)
+    setNotice(`${snapshot.container.publicId} audit imported: ${comparison.matchedEventNames.length} local event${comparison.matchedEventNames.length === 1 ? '' : 's'} matched. No OAuth token or raw tag code was copied.`)
   }
 
   if (!containerId) {

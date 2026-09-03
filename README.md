@@ -160,6 +160,8 @@ New accounts receive a verification link that expires after 24 hours and cannot 
 
 The Tag Lab page and navigation link are visible to everyone, but its workspace launcher remains locked until the verified administrator signs in. Direct workspace visits redirect unauthorized visitors to login, and every GTM API route independently checks the signed application session. OAuth state and encrypted access cookies are bound to that application's user ID, so switching accounts in the same browser cannot reuse another account's Google authorization. Logging out expires the application session, pending OAuth state, and GTM access cookie together.
 
+The optional GTM connection now audits the selected container's default workspace through Google's read-only API. It returns bounded, sanitized tag, trigger, variable, built-in-variable, Google-tag configuration, GA4 measurement/event, and consent summaries, then compares detected GA4 event names with the local virtual event files. OAuth tokens, tag notes, parameter payloads, and custom HTML are never copied into `container.json`.
+
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup

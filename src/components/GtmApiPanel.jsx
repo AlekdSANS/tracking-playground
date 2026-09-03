@@ -17,7 +17,7 @@ function GtmApiPanel({ containerId, onImportSnapshot }) {
       if (!response.ok) throw new Error(data.error || 'The GTM API request failed.')
       setSnapshot(data)
       setStatus((current) => ({ ...current, phase: 'connected' }))
-      setMessage(`${data.container.publicId} was verified. This snapshot is read-only.`)
+      setMessage(`${data.container.publicId} was audited through Google's read-only API.`)
     } catch (error) {
       setSnapshot(null)
       setStatus((current) => ({ ...current, phase: error.message.includes('again') ? 'disconnected' : 'error' }))
@@ -89,10 +89,21 @@ function GtmApiPanel({ containerId, onImportSnapshot }) {
         {snapshot ? <>
           <div className="gtm-api-result-heading"><div><span>Verified container</span><strong>{snapshot.container.name || snapshot.container.publicId}</strong></div><b>{snapshot.container.publicId}</b></div>
           <dl><div><dt>Account</dt><dd>{snapshot.account.name || snapshot.account.accountId}</dd></div><div><dt>Context</dt><dd>{snapshot.container.usageContext.join(', ') || 'Not specified'}</dd></div><div><dt>Domains</dt><dd>{snapshot.container.domainName.length || 0}</dd></div><div><dt>Workspaces</dt><dd>{snapshot.workspaces.length}</dd></div></dl>
+          <div className="gtm-api-audit">
+            <div className="gtm-api-audit-heading"><div><span>Audited workspace</span><strong>{snapshot.audit?.workspace?.name || 'No workspace available'}</strong></div><span>Sanitized configuration</span></div>
+            <dl><div><dt>Tags</dt><dd>{snapshot.audit?.counts?.tags || 0}</dd></div><div><dt>Triggers</dt><dd>{snapshot.audit?.counts?.triggers || 0}</dd></div><div><dt>Variables</dt><dd>{snapshot.audit?.counts?.variables || 0}</dd></div><div><dt>GA4 events</dt><dd>{snapshot.audit?.ga4?.eventNames?.length || 0}</dd></div></dl>
+            <div className="gtm-api-audit-details">
+              <div><strong>Measurement IDs</strong><p>{snapshot.audit?.ga4?.measurementIds?.join(', ') || 'None detected'}</p></div>
+              <div><strong>GA4 event names</strong><p>{snapshot.audit?.ga4?.eventNames?.join(', ') || 'None detected'}</p></div>
+              <div><strong>Consent types</strong><p>{snapshot.audit?.consent?.types?.join(', ') || 'None detected'}</p></div>
+            </div>
+            {snapshot.audit?.truncatedSections?.length > 0 && <small>Large sections were capped for safety: {snapshot.audit.truncatedSections.join(', ')}.</small>}
+            {snapshot.audit?.unavailableSections?.length > 0 && <small>Not supported by this container: {snapshot.audit.unavailableSections.join(', ')}.</small>}
+          </div>
           <div className="gtm-api-workspaces"><strong>Available workspaces</strong>{snapshot.workspaces.length ? <ul>{snapshot.workspaces.map((workspace) => <li key={workspace.path}><span>{workspace.name || 'Untitled workspace'}</span><code>{workspace.workspaceId}</code></li>)}</ul> : <p>No workspaces returned.</p>}</div>
-          <button className="gtm-api-import" type="button" onClick={() => onImportSnapshot(snapshot)}>Import sanitized snapshot into container.json</button>
+          <button className="gtm-api-import" type="button" onClick={() => onImportSnapshot(snapshot)}>Import audit and local comparison into container.json</button>
           {expiresLabel && <small>Authorization expires at {expiresLabel}. Reconnect to continue.</small>}
-        </> : <div className="gtm-api-empty"><span aria-hidden="true">↯</span><strong>No account data in the browser</strong><p>The backend returns only sanitized container metadata. OAuth credentials never enter this workspace.</p></div>}
+        </> : <div className="gtm-api-empty"><span aria-hidden="true">↯</span><strong>No account data in the browser</strong><p>The backend returns only sanitized GTM structure and audit fields. OAuth credentials and raw tag code never enter this workspace.</p></div>}
       </div>
     </section>
   )

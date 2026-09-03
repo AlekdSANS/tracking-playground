@@ -331,11 +331,24 @@ describe('opt-in Live GTM boundary', () => {
 })
 
 describe('read-only GTM API surface', () => {
-  test('keeps OAuth on the server and imports only sanitized metadata', async () => {
+  test('keeps OAuth on the server and imports a sanitized audit with local comparison', async () => {
     const snapshot = {
       account: { name: 'Learning account', accountId: '10' },
       container: { name: 'Practice container', publicId: 'GTM-SAFE123', accountId: '10', containerId: '20', path: 'accounts/10/containers/20', domainName: ['practice.invalid'], usageContext: ['web'], tagManagerUrl: 'https://tagmanager.google.com/' },
       workspaces: [{ name: 'Default Workspace', workspaceId: '1', path: 'accounts/10/containers/20/workspaces/1' }],
+      audit: {
+        workspace: { name: 'Default Workspace', workspaceId: '1', path: 'accounts/10/containers/20/workspaces/1' },
+        counts: { tags: 2, triggers: 1, variables: 1, builtInVariables: 1, googleTagConfigs: 1 },
+        tags: [{ tagId: '7', name: 'GA4 page view', type: 'gaawe', paused: false, firingTriggerIds: ['3'], blockingTriggerIds: [], consent: { status: 'needed', types: ['analytics_storage'] }, ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['page_view'], measurementReferences: [] } }],
+        triggers: [{ triggerId: '3', name: 'Page view', type: 'pageview', eventNames: [] }],
+        variables: [],
+        builtInVariables: [{ name: 'Event', type: 'event' }],
+        googleTagConfigs: [{ gtagConfigId: 'G-SAFE12345', type: 'googleTag', measurementIds: ['G-SAFE12345'] }],
+        ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['page_view', 'purchase'], measurementReferences: [] },
+        consent: { types: ['analytics_storage'], tagsRequiringConsent: ['GA4 page view'] },
+        truncatedSections: [],
+        unavailableSections: [],
+      },
     }
     vi.stubGlobal('fetch', vi.fn(async (url) => {
       if (url === '/api/gtm-status') return { ok: true, json: async () => ({ configured: true, connected: true, scope: 'readonly', expiresAt: Date.now() + 600000 }) }
@@ -345,15 +358,23 @@ describe('read-only GTM API surface', () => {
     const user = userEvent.setup()
     await renderApp('/tag-workspace#container=GTM-SAFE123')
 
-    expect(await screen.findByText(/GTM-SAFE123 was verified/i)).toBeInTheDocument()
+    expect(await screen.findByText(/GTM-SAFE123 was audited/i)).toBeInTheDocument()
     expect(screen.getByText(/^read-only GTM API$/i)).toBeInTheDocument()
+    expect(screen.getByText('G-SAFE12345')).toBeInTheDocument()
+    expect(screen.getByText('page_view, purchase')).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/access[_ -]?token|server-token/i)
-    await user.click(screen.getByRole('button', { name: /import sanitized snapshot/i }))
+    await user.click(screen.getByRole('button', { name: /import audit and local comparison/i }))
 
     const editor = screen.getByRole('textbox', { name: /edit container\.json/i })
-    expect(editor.value).toContain('tracking-playground/gtm-api-snapshot/v1')
+    expect(editor.value).toContain('tracking-playground/gtm-api-snapshot/v2')
     expect(editor.value).toContain('"readOnly": true')
     expect(editor.value).toContain('Default Workspace')
+    expect(editor.value).toContain('"matchedEventNames": [')
+    expect(editor.value).toContain('"page_view"')
+    expect(editor.value).toContain('"onlyInWorkspace": [')
+    expect(editor.value).toContain('"generate_lead"')
+    expect(editor.value).toContain('"onlyInGtm": [')
+    expect(editor.value).toContain('"purchase"')
     expect(editor.value).not.toMatch(/access[_ -]?token/i)
   })
 
