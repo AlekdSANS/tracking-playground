@@ -77,7 +77,7 @@ function GtmApiPanel({ containerId, onImportSnapshot }) {
   return (
     <section className={`gtm-api-panel is-${status.phase}`} aria-labelledby="gtm-api-heading">
       <div className="gtm-api-intro">
-        <div className="gtm-api-heading"><div><p className="eyebrow">Server-side bridge</p><h2 id="gtm-api-heading">Read-only GTM API</h2></div><span><i aria-hidden="true" />{status.phase}</span></div>
+        <div className="gtm-api-heading"><div><h2 id="gtm-api-heading">Read-only GTM API</h2></div><span><i aria-hidden="true" />{status.phase}</span></div>
         <p aria-live="polite">{message}</p>
         <div className="gtm-api-guardrails"><span>Read-only scope</span><span>HTTP-only token</span><span>10-minute expiry</span><span>No publish access</span></div>
         {status.phase === 'disconnected' && <a className="gtm-api-connect" href={`/api/gtm-oauth-start?container=${encodeURIComponent(containerId)}`}>Connect Google Tag Manager</a>}

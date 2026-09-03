@@ -120,7 +120,6 @@ function AuthPage() {
   return (
     <section className="narrow-page auth-page">
       <div className="page-intro">
-        <p className="eyebrow">MongoDB auth</p>
         <h1>Login system</h1>
         <p>
           Create an account or log in using the MongoDB-backed API routes.

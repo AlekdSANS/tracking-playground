@@ -26,7 +26,7 @@ function TagLabPage() {
   return (
     <section className="tag-lab-page">
       <div className="tag-lab-intro">
-        <div><p className="eyebrow">Security-first learning lab</p><h1>GTM + GA4 workspace launcher</h1><p>Open a disposable project, edit realistic dataLayer files, and test events without loading a live container.</p></div>
+        <div><h1>GTM + GA4 workspace launcher</h1><p>Open a disposable project, edit realistic dataLayer files, and test events without loading a live container.</p></div>
         <div className="lab-safety-note"><span aria-hidden="true">◉</span><div><strong>Offline first</strong><p>Your ID labels the project. No Google script loads in this phase.</p></div></div>
       </div>
       <div className="workspace-launch-layout">
@@ -38,13 +38,13 @@ function TagLabPage() {
           <p className="form-status muted" aria-live="polite">{feedback}</p>
         </form>
         <section className="workspace-launch-preview" aria-label="Workspace security phases">
-          <p className="eyebrow">Incremental rollout</p><h2>Prove the safe path first</h2>
+          <h2>Prove the safe path first</h2>
           <div>{[['01','Virtual workspace','Create and edit local files','Ready'],['02','Strict validation','Reject unsafe names and JSON','Ready'],['03','Isolated simulator','Run events with no network','Ready'],['04','Live GTM','Explicit restricted 10-minute session','Opt-in']].map(([number,title,text,status]) => <article className={status === 'Ready' ? 'is-ready' : 'is-locked'} key={number}><span>{number}</span><div><strong>{title}</strong><p>{text}</p></div><b>{status}</b></article>)}</div>
         </section>
       </div>
       <section className="tag-guide" aria-labelledby="tag-guide-heading">
-        <div className="tag-guide-heading"><div><p className="eyebrow">Learn while you build</p><h2 id="tag-guide-heading">Secure workspace field guide</h2></div><p>The guide follows the same four boundaries as the workspace.</p></div>
-        <div className="tag-guide-card"><div className="tag-guide-tabs" role="tablist" aria-label="Workspace guide topics">{guides.map((item, index) => <button type="button" role="tab" aria-selected={item.id === activeGuideId} className={item.id === activeGuideId ? 'is-active' : ''} onClick={() => setActiveGuideId(item.id)} key={item.id}><span>{String(index + 1).padStart(2,'0')}</span>{item.label}</button>)}</div><article className="tag-guide-content" role="tabpanel"><p className="eyebrow">{guide.label}</p><h3>{guide.title}</h3><p>{guide.text}</p></article></div>
+        <div className="tag-guide-heading"><div><h2 id="tag-guide-heading">Secure workspace field guide</h2></div><p>The guide follows the same four boundaries as the workspace.</p></div>
+        <div className="tag-guide-card"><div className="tag-guide-tabs" role="tablist" aria-label="Workspace guide topics">{guides.map((item, index) => <button type="button" role="tab" aria-selected={item.id === activeGuideId} className={item.id === activeGuideId ? 'is-active' : ''} onClick={() => setActiveGuideId(item.id)} key={item.id}><span>{String(index + 1).padStart(2,'0')}</span>{item.label}</button>)}</div><article className="tag-guide-content" role="tabpanel"><h3>{guide.title}</h3><p>{guide.text}</p></article></div>
       </section>
     </section>
   )

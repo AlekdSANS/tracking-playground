@@ -104,7 +104,7 @@ function LiveGtmPanel({ containerId, payload, canSend, selectedFile }) {
   return (
     <section className={`live-gtm-panel is-${phase}`} aria-labelledby="live-gtm-heading">
       <div className="live-gtm-overview">
-        <div className="live-gtm-heading"><div><p className="eyebrow">Explicit network mode</p><h2 id="live-gtm-heading">Opt-in Live GTM connection</h2></div><span><i aria-hidden="true" />{phase === 'off' ? 'Off' : phase}</span></div>
+        <div className="live-gtm-heading"><div><h2 id="live-gtm-heading">Opt-in Live GTM connection</h2></div><span><i aria-hidden="true" />{phase === 'off' ? 'Off' : phase}</span></div>
         <p>{feedback}</p>
         <div className="live-gtm-boundaries"><span>Opaque iframe</span><span>Google-only CSP</span><span>Custom scripts blocked</span><span>10-minute limit</span></div>
         {!session ? <button className="live-gtm-review" type="button" onClick={() => setShowConsent(true)}>Review and opt in</button> : <button className="live-gtm-disconnect" type="button" onClick={() => disconnect()}>Disconnect and destroy</button>}
@@ -118,7 +118,7 @@ function LiveGtmPanel({ containerId, payload, canSend, selectedFile }) {
 
       {showConsent && <div className="live-gtm-consent-backdrop" role="presentation">
         <section className="live-gtm-consent" role="dialog" aria-modal="true" aria-labelledby="live-consent-heading">
-          <div className="live-consent-heading"><span aria-hidden="true">!</span><div><p className="eyebrow">Network boundary</p><h2 id="live-consent-heading">Before connecting {containerId}</h2></div></div>
+          <div className="live-consent-heading"><span aria-hidden="true">!</span><div><h2 id="live-consent-heading">Before connecting {containerId}</h2></div></div>
           <p>This loads code configured by the container owner. The frame cannot read the main site, and its policy blocks custom scripts and non-Google destinations, but allowed events may reach Google Analytics destinations owned by the container owner.</p>
           <div className="live-consent-checks">
             <label><input type="checkbox" checked={consent.permission} onChange={(event) => setConsent((current) => ({ ...current, permission: event.target.checked }))} /><span><strong>I own or may test this container</strong><small>I have permission to generate practice traffic.</small></span></label>

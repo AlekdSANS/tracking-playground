@@ -38,10 +38,12 @@ function ThankYouPage() {
     <section className="thank-you-page playful-page thank-you-playful">
       <img
         className="playful-image thank-you-image"
-        src="/silly/thank-you.png"
+        src="/silly/thank-you.webp"
         alt="Thank you page mascot"
+        width="800"
+        height="800"
+        decoding="async"
       />
-      <p className="eyebrow">Conversion complete</p>
       <h1>Thank you</h1>
       <p>
         Successful submission recorded for <strong>{formName}</strong> from{' '}

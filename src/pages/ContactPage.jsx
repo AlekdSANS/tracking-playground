@@ -5,11 +5,13 @@ function ContactPage() {
     <section className="narrow-page playful-page contact-playful">
       <img
         className="playful-image contact-image"
-        src="/silly/silly-1.png"
+        src="/silly/silly-1.webp"
         alt="Business cat mascot"
+        width="1080"
+        height="848"
+        decoding="async"
       />
       <div className="page-intro">
-        <p className="eyebrow">Contact route</p>
         <h1>Contact page form</h1>
         <p>
           This route uses a separate form name so you can compare form tracking

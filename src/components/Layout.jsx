@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import AnalyticsDebugPanel from './AnalyticsDebugPanel'
 import ConsentBanner from './ConsentBanner'
-import PlaygroundConsole from './PlaygroundConsole'
 import Waves from './Waves'
 
 const navItems = [
@@ -131,8 +130,6 @@ function Layout() {
           </button>
         </div>
       </header>
-
-      <PlaygroundConsole />
 
       <main className="page-shell">
         <Outlet context={{ user, theme }} />

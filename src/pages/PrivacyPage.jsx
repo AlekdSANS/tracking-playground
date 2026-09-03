@@ -3,10 +3,12 @@ function PrivacyPage() {
     <section className="narrow-page text-page playful-page privacy-playful">
       <img
         className="playful-image privacy-image"
-        src="/silly/silly-4.png"
+        src="/silly/silly-4.webp"
         alt="Privacy page mascot"
+        width="512"
+        height="512"
+        decoding="async"
       />
-      <p className="eyebrow">Privacy</p>
       <h1>Analytics and privacy notes</h1>
       <p>
         This practice app is designed for analytics testing only. It simulates

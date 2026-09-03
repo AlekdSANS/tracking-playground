@@ -227,11 +227,13 @@ function UtmBuilderPage() {
     <section className="narrow-page playful-page utm-builder-page">
       <img
         className="playful-image utm-builder-image"
-        src="/silly/utm-builder-sticker.png"
+        src="/silly/utm-builder-sticker.webp"
         alt="UTM builder sticker"
+        width="331"
+        height="335"
+        decoding="async"
       />
       <div className="page-intro">
-        <p className="eyebrow">Bonus tool</p>
         <h1>UTM link creator</h1>
         <p>
           Build links with any parameter names you need, from classic UTMs to

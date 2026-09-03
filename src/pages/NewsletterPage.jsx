@@ -5,11 +5,13 @@ function NewsletterPage() {
     <section className="narrow-page playful-page newsletter-playful">
       <img
         className="playful-image newsletter-image"
-        src="/silly/silly-3.png"
+        src="/silly/silly-3.webp"
         alt="Newsletter cat mascot"
+        width="512"
+        height="512"
+        decoding="async"
       />
       <div className="page-intro">
-        <p className="eyebrow">Newsletter route</p>
         <h1>Newsletter signup</h1>
         <p>
           Practice newsletter signup events with checkbox validation and

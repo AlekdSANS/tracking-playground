@@ -1,22 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useAnalyticsEvents } from '../hooks/useAnalyticsEvents'
 import { trackEvent, trackFormError, trackFormSuccess } from '../utils/analytics'
 
 const MAX_VISIBLE_EVENTS = 8
-
-function readInitialEvents() {
-  if (typeof window === 'undefined' || !Array.isArray(window.dataLayer)) {
-    return []
-  }
-
-  return window.dataLayer
-    .filter((item) => typeof item?.event === 'string' && item.event !== 'gtm.js')
-    .slice(-MAX_VISIBLE_EVENTS)
-    .reverse()
-    .map((item) => ({
-      ...item,
-      pushed_to_data_layer: true,
-    }))
-}
 
 function formatEventTime(timestamp) {
   if (!timestamp) {
@@ -51,16 +37,12 @@ function getEventPresentation(eventName = '') {
 }
 
 function PlaygroundConsole() {
-  const [events, setEvents] = useState(readInitialEvents)
+  const [events, setEvents] = useAnalyticsEvents(MAX_VISIBLE_EVENTS)
   const [isOpen, setIsOpen] = useState(false)
   const [pulseKey, setPulseKey] = useState(0)
 
   useEffect(() => {
-    function handleAnalyticsEvent(event) {
-      setEvents((currentEvents) => [
-        event.detail,
-        ...currentEvents,
-      ].slice(0, MAX_VISIBLE_EVENTS))
+    function handleAnalyticsEvent() {
       setPulseKey((currentKey) => currentKey + 1)
     }
 

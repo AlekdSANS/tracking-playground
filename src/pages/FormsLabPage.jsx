@@ -11,7 +11,9 @@ const experiments = [
     title: 'Complete lead journey',
     description:
       'Start, validate, and submit a complete lead journey with a dedicated form name and location.',
-    image: '/silly/silly-1.png',
+    image: '/silly/silly-1.webp',
+    imageWidth: 1080,
+    imageHeight: 848,
     imageAlt: 'Business cat mascot',
     color: 'violet',
   },
@@ -22,7 +24,9 @@ const experiments = [
     title: 'Short intent signal',
     description:
       'Practice a shorter intent signal without sending the entered phone number or preferred time to analytics.',
-    image: '/silly/silly-2.png',
+    image: '/silly/silly-2.webp',
+    imageWidth: 719,
+    imageHeight: 601,
     imageAlt: 'Golem mascot',
     color: 'lime',
   },
@@ -33,7 +37,9 @@ const experiments = [
     title: 'Audience growth signal',
     description:
       'Compare signup events, checkbox validation, and consent-friendly parameters in one compact flow.',
-    image: '/silly/silly-3.png',
+    image: '/silly/silly-3.webp',
+    imageWidth: 512,
+    imageHeight: 512,
     imageAlt: 'Newsletter cat mascot',
     color: 'peach',
   },
@@ -55,7 +61,6 @@ function FormsLabPage() {
     <section className="forms-lab-page">
       <div className="forms-lab-heading">
         <div>
-          <p className="eyebrow">Three flows, one route</p>
           <h1>Forms Lab</h1>
           <p>
             Switch experiments without leaving the page. Each form keeps its own
@@ -99,11 +104,17 @@ function FormsLabPage() {
       >
         <div className="forms-lab-intro">
           <div>
-            <p className="eyebrow">{activeExperiment.eyebrow}</p>
             <h2>{activeExperiment.title}</h2>
             <p>{activeExperiment.description}</p>
           </div>
-          <img src={activeExperiment.image} alt={activeExperiment.imageAlt} />
+          <img
+            src={activeExperiment.image}
+            alt={activeExperiment.imageAlt}
+            width={activeExperiment.imageWidth}
+            height={activeExperiment.imageHeight}
+            loading="lazy"
+            decoding="async"
+          />
         </div>
 
         <div className="forms-lab-form" key={activeExperiment.id}>

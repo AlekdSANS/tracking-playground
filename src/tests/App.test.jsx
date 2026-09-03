@@ -221,6 +221,26 @@ test('saves consent preferences', async () => {
   })
 })
 
+test('loads Google Tag Manager only after analytics consent', async () => {
+  const user = userEvent.setup()
+  const firstBanner = render(<ConsentBanner />)
+
+  await user.click(screen.getByRole('button', { name: /reject optional tracking/i }))
+  expect(document.getElementById('google-tag-manager-script')).not.toBeInTheDocument()
+
+  firstBanner.unmount()
+  window.localStorage.clear()
+  render(<ConsentBanner />)
+  await user.click(screen.getByRole('button', { name: /accept all/i }))
+
+  const gtmScript = document.getElementById('google-tag-manager-script')
+  expect(gtmScript).toBeInTheDocument()
+  expect(gtmScript).toHaveAttribute(
+    'src',
+    expect.stringContaining('googletagmanager.com/gtm.js'),
+  )
+})
+
 test('pushes a page-view event on route change', async () => {
   saveConsent({ necessary: true, analytics: true, advertising: true })
   const user = userEvent.setup()
@@ -253,25 +273,10 @@ test('switches between all form experiments on one page', async () => {
   expect(screen.getByRole('button', { name: /sign up/i })).toBeInTheDocument()
 })
 
-test('shows a fired event in the playground console', async () => {
-  saveConsent({ necessary: true, analytics: true, advertising: true })
-  const user = userEvent.setup()
-  renderApp(['/'])
+test('does not show the event console on experiment pages', () => {
+  renderApp(['/forms'])
 
-  await user.click(screen.getByRole('button', { name: /fire test event/i }))
-
-  await waitFor(() => {
-    expect(window.dataLayer).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          event: 'playground_test_event',
-          trigger: 'console',
-        }),
-      ]),
-    )
-  })
-
-  expect(screen.getAllByText('playground_test_event').length).toBeGreaterThanOrEqual(2)
+  expect(screen.queryByRole('button', { name: /fire test event/i })).not.toBeInTheDocument()
 })
 
 test('pushes source and campaign UTM values into analytics events', async () => {
@@ -301,6 +306,7 @@ test('builds a telegram UTM link', () => {
   renderApp(['/utm-builder'])
 
   expect(screen.getByRole('heading', { name: /utm link creator/i })).toBeInTheDocument()
+  expect(document.title).toBe('UTM Link Builder — Tracking Playground')
   expect(screen.getByDisplayValue(/utm_source=telegram/)).toBeInTheDocument()
   expect(screen.getByDisplayValue(/utm_medium=chat/)).toBeInTheDocument()
   expect(screen.getByDisplayValue(/utm_campaign=bro_test/)).toBeInTheDocument()

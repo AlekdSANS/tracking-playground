@@ -5,4 +5,5 @@ beforeEach(() => {
   window.dataLayer = []
   window.localStorage.clear()
   window.sessionStorage.clear()
+  document.getElementById('google-tag-manager-script')?.remove()
 })

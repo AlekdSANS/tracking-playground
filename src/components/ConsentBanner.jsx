@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { trackConsentUpdate } from '../utils/analytics'
 import { getStoredConsent, saveConsent } from '../utils/consent'
+import { syncGoogleTagManager } from '../utils/googleTagManager'
 
 function ConsentBanner({ forceOpen = false, onClose }) {
   const [isOpen, setIsOpen] = useState(forceOpen || !localStorage.getItem('analytics_practice_consent'))
@@ -9,6 +10,7 @@ function ConsentBanner({ forceOpen = false, onClose }) {
 
   function savePreferences(nextPreferences) {
     const savedPreferences = saveConsent(nextPreferences)
+    syncGoogleTagManager(savedPreferences)
     setPreferences(savedPreferences)
     trackConsentUpdate(savedPreferences)
     setIsOpen(false)

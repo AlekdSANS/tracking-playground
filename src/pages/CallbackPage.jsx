@@ -5,11 +5,13 @@ function CallbackPage() {
     <section className="narrow-page playful-page callback-playful">
       <img
         className="playful-image callback-image"
-        src="/silly/silly-2.png"
+        src="/silly/silly-2.webp"
         alt="Golem mascot"
+        width="719"
+        height="601"
+        decoding="async"
       />
       <div className="page-intro">
-        <p className="eyebrow">Callback route</p>
         <h1>Callback request</h1>
         <p>
           Use this shorter form to practice callback conversion events without

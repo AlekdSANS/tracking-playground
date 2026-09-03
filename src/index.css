@@ -60,6 +60,14 @@ body {
 	overflow-x: hidden;
 }
 
+.page-loading {
+	display: grid;
+	min-height: 50vh;
+	place-items: center;
+	color: var(--muted);
+	font-weight: 700;
+}
+
 #root {
 	min-height: 100vh;
 	position: relative;
@@ -625,13 +633,19 @@ textarea:focus-visible {
 }
 
 .home-intro h1 {
-	font-size: clamp(3.1rem, 6.5vw, 5.65rem);
-	letter-spacing: -0.065em;
-	line-height: 0.91;
+	max-width: 650px;
+	font-family: "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+	font-size: clamp(3.5rem, 7.5vw, 6.5rem);
+	font-weight: 500;
+	letter-spacing: -0.055em;
+	line-height: 0.92;
 }
 
 .home-intro h1 span {
+	display: block;
 	color: var(--accent);
+	font-style: italic;
+	font-weight: 400;
 }
 
 .home-intro > p:last-of-type {
@@ -715,12 +729,10 @@ textarea:focus-visible {
 	gap: 5px;
 }
 
-.preview-kicker {
-	color: #aaa6c3;
-	font-size: 0.72rem;
-	font-weight: 800;
-	letter-spacing: 0.08em;
-	text-transform: uppercase;
+.preview-title {
+	font-size: 1.3rem;
+	letter-spacing: -0.025em;
+	line-height: 1.15;
 }
 
 .preview-status {
@@ -800,6 +812,17 @@ textarea:focus-visible {
 	color: var(--lime);
 }
 
+.event-state.is-blocked {
+	color: #ff9b96;
+}
+
+.preview-events .preview-empty {
+	grid-template-columns: 1fr;
+	min-height: 64px;
+	place-items: center;
+	text-align: center;
+}
+
 .preview-footer {
 	margin-top: 16px;
 	padding-top: 16px;
@@ -817,6 +840,7 @@ textarea:focus-visible {
 	right: -38px;
 	bottom: -52px;
 	width: 110px;
+	height: auto;
 	filter: drop-shadow(0 8px 12px rgba(0, 0, 0, 0.24));
 	transform: rotate(8deg);
 }
@@ -2150,6 +2174,10 @@ pre {
 	padding-left: 22px;
 }
 
+.event-list li {
+	min-width: 0;
+}
+
 .event-list span {
 	display: block;
 	margin-top: 4px;
@@ -2733,7 +2761,7 @@ pre {
 	}
 
 	.home-intro h1 {
-		font-size: clamp(3rem, 14vw, 4.4rem);
+		font-size: clamp(3.25rem, 15vw, 4.75rem);
 	}
 
 	.hero-actions {
@@ -2898,7 +2926,6 @@ body {
 }
 
 .playground-console.is-open .console-toggle small,
-.preview-kicker,
 .preview-route,
 .preview-footer,
 .tag-lab-stage-header code,
@@ -3220,6 +3247,7 @@ pre {
 
 @media (max-width: 540px) {
 	.lab-preview {
+		transform: none;
 		box-shadow: 14px 16px 0 #342c53, 0 24px 60px rgba(0, 0, 0, 0.34);
 	}
 

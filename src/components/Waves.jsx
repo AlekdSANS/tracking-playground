@@ -177,6 +177,10 @@ function Waves({
       return undefined
     }
 
+    if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      return undefined
+    }
+
     noiseRef.current = new Noise(Math.random())
 
     const canvas = canvasRef.current

@@ -276,38 +276,38 @@ function TagWorkspacePage() {
         </section>
 
         <aside className="workspace-guide" aria-label="Contextual GTM and GA4 guide">
-          <div className="workspace-guide-heading"><div><p className="eyebrow">Learn in context</p><h2>GTM + GA4 guide</h2></div><span>{completedGuideSteps}/4</span></div>
+          <div className="workspace-guide-heading"><div><h2>GTM + GA4 guide</h2></div><span>{completedGuideSteps}/4</span></div>
           <div className="workspace-guide-tabs" role="tablist" aria-label="Guide views">
             {[['context','This file'],['flow','Flow'],['examples','Examples'],['reference','Terms']].map(([id, label]) => <button type="button" role="tab" aria-selected={guideTab === id} className={guideTab === id ? 'is-active' : ''} onClick={() => setGuideTab(id)} key={id}>{label}</button>)}
           </div>
 
           {guideTab === 'context' && <div className="workspace-guide-panel" role="tabpanel">
             <div className="workspace-guide-progress"><div><strong>Practice progress</strong><span>{completedGuideSteps * 25}%</span></div><i><b style={{ width: `${completedGuideSteps * 25}%` }} /></i><ul>{guideProgress.map((step) => <li className={step.complete ? 'is-complete' : ''} key={step.label}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span>{step.label}</li>)}</ul></div>
-            <p className="eyebrow">{guideContext.kicker}</p><h3>{guideContext.title}</h3><p>{guideContext.summary}</p>
+            <h3>{guideContext.title}</h3><p>{guideContext.summary}</p>
             <ol className="workspace-guide-steps">{guideContext.steps.map((step, index) => <li key={step.title}><span>{index + 1}</span><div><strong>{step.title}</strong><p>{step.detail}</p></div></li>)}</ol>
             <div className="workspace-shortcuts"><strong>Editor shortcuts</strong><span><kbd>Tab</kbd> Insert two spaces</span><span><kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>F</kbd> Format JSON</span></div>
           </div>}
 
           {guideTab === 'flow' && <div className="workspace-guide-panel" role="tabpanel">
-            <p className="eyebrow">End-to-end map</p><h3>From website to DebugView</h3><p>The offline runner covers the first step. GTM and GA4 remain conceptual until Live GTM is approved.</p>
+            <h3>From website to DebugView</h3><p>The offline runner covers the first step. GTM and GA4 remain conceptual until Live GTM is approved.</p>
             <ol className="workspace-flow-list">{GTM_GA4_FLOW.map((step, index) => <li className={index === 0 ? 'is-active' : ''} key={step.id}><span>{String(index + 1).padStart(2, '0')}</span><div><strong>{step.label}</strong><p>{step.detail}</p></div>{index < GTM_GA4_FLOW.length - 1 && <i aria-hidden="true">↓</i>}</li>)}</ol>
             {validation.value?.event && <div className="workspace-guide-code"><span>Your trigger name</span><code>{validation.value.event}</code></div>}
           </div>}
 
           {guideTab === 'examples' && <div className="workspace-guide-panel" role="tabpanel">
-            <p className="eyebrow">Safe starter payloads</p><h3>Add an example file</h3><p>Examples use synthetic values and open as a new file, so they never overwrite your work.</p>
+            <h3>Add an example file</h3><p>Examples use synthetic values and open as a new file, so they never overwrite your work.</p>
             <div className="workspace-guide-examples">{GUIDE_EXAMPLES.map((example) => <article key={example.id}><div><strong>{example.label}</strong><code>{example.id}</code></div><p>{example.description}</p><button type="button" aria-label={`${files[`events/example-${example.id}.json`] ? 'Open' : 'Add'} ${example.label} example${files[`events/example-${example.id}.json`] ? '' : ' to workspace'}`} onClick={() => addGuideExample(example)}>{files[`events/example-${example.id}.json`] ? 'Open example' : 'Add to workspace'}</button></article>)}</div>
           </div>}
 
           {guideTab === 'reference' && <div className="workspace-guide-panel" role="tabpanel">
-            <p className="eyebrow">Plain-language reference</p><h3>Terms you will use</h3>
+            <h3>Terms you will use</h3>
             <dl className="workspace-glossary">{WORKSPACE_GLOSSARY.map((item) => <div key={item.term}><dt>{item.term}</dt><dd>{item.definition}</dd></div>)}</dl>
             <div className="workspace-live-lock"><strong>Live GTM is off by default</strong><p>The separate live panel requires explicit acknowledgement, restricts tag classes and destinations, and destroys itself after 10 minutes.</p></div>
           </div>}
         </aside>
 
         <section className="workspace-runner" aria-labelledby="disposable-runner-heading">
-          <div className="workspace-runner-controls"><div className="workspace-runner-title"><div><p className="eyebrow">Single-use process</p><h2 id="disposable-runner-heading">Disposable simulation runner</h2></div><span className={`is-${runnerStatus}`}><i aria-hidden="true" />{activeRun ? runnerStatus : runnerStatus === 'idle' ? 'Ready' : runnerStatus}</span></div><p aria-live="polite">{notice || 'A fresh network-disabled sandbox is created for one validated event, then destroyed.'}</p><div className="workspace-runner-actions"><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.safeToRun || Boolean(activeRun)}>Run in fresh sandbox</button>{activeRun && <button className="is-cancel" type="button" onClick={cancelRun}>Cancel and dispose</button>}</div><div className="workspace-runner-rules"><span>1 payload</span><span>0 network</span><span>4s timeout</span><span>Auto-dispose</span></div></div>
+          <div className="workspace-runner-controls"><div className="workspace-runner-title"><div><h2 id="disposable-runner-heading">Disposable simulation runner</h2></div><span className={`is-${runnerStatus}`}><i aria-hidden="true" />{activeRun ? runnerStatus : runnerStatus === 'idle' ? 'Ready' : runnerStatus}</span></div><p aria-live="polite">{notice || 'A fresh network-disabled sandbox is created for one validated event, then destroyed.'}</p><div className="workspace-runner-actions"><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.safeToRun || Boolean(activeRun)}>Run in fresh sandbox</button>{activeRun && <button className="is-cancel" type="button" onClick={cancelRun}>Cancel and dispose</button>}</div><div className="workspace-runner-rules"><span>1 payload</span><span>0 network</span><span>4s timeout</span><span>Auto-dispose</span></div></div>
           <div className={`workspace-runner-process is-${runnerStatus}`}>
             {activeRun ? <><div className="workspace-process-label"><span>Ephemeral process</span><code>{activeRun.id}</code></div><iframe key={activeRun.id} ref={iframeRef} title={`Disposable dataLayer runtime ${activeRun.id}`} sandbox="allow-scripts" referrerPolicy="no-referrer" srcDoc={DISPOSABLE_RUNNER_DOCUMENT} onLoad={connectRunner} /><div className="workspace-disposal-note"><i aria-hidden="true" />This frame will be removed after one result.</div></> : <div className="workspace-runner-idle"><span aria-hidden="true">◇</span><strong>No process exists</strong><p>The DOM contains no runner iframe while idle.</p></div>}
           </div>

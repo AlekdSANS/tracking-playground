@@ -1,0 +1,8 @@
+export { default as AuthPage } from './AuthPage'
+export { default as FormsLabPage } from './FormsLabPage'
+export { default as HomePage } from './HomePage'
+export { default as PrivacyPage } from './PrivacyPage'
+export { default as ThankYouPage } from './ThankYouPage'
+export { default as TagLabPage } from './TagLabPage'
+export { default as TagWorkspacePage } from './TagWorkspacePage'
+export { default as UtmBuilderPage } from './UtmBuilderPage'
