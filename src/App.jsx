@@ -1,10 +1,7 @@
 import { lazy, Suspense } from 'react'
 import { Navigate, Route, Routes } from 'react-router-dom'
 import Layout from './components/Layout'
-import {
-  RequireVerifiedAdmin,
-  StandaloneRequireVerifiedAdmin,
-} from './components/RequireVerifiedAdmin'
+import { StandaloneRequireVerifiedAdmin } from './components/RequireVerifiedAdmin'
 import { usePageTracking } from './hooks/usePageTracking'
 
 const eagerPages = import.meta.env.MODE === 'test'
@@ -47,9 +44,7 @@ function App() {
           <Route path="callback" element={<Navigate replace to="/forms?experiment=callback" />} />
           <Route path="newsletter" element={<Navigate replace to="/forms?experiment=newsletter" />} />
           <Route path="utm-builder" element={<UtmBuilderPage />} />
-          <Route element={<RequireVerifiedAdmin />}>
-            <Route path="tag-lab" element={<TagLabPage />} />
-          </Route>
+          <Route path="tag-lab" element={<TagLabPage />} />
           <Route path="login" element={<AuthPage />} />
           <Route path="thank-you" element={<ThankYouPage />} />
           <Route path="privacy" element={<PrivacyPage />} />

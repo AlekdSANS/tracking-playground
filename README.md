@@ -77,7 +77,7 @@ Custom analytics events are withheld until analytics consent is granted. Once al
 | `/callback` | Callback request |
 | `/newsletter` | Newsletter signup |
 | `/utm-builder` | Campaign URL builder |
-| `/tag-lab` | Verified-admin-only GTM and GA4 lab |
+| `/tag-lab` | Public GTM and GA4 learning guide with a verified-admin-only launcher |
 | `/tag-workspace` | Verified-admin-only disposable tag workspace |
 | `/login` | Registration and login |
 | `/thank-you` | Form success page |
@@ -158,7 +158,7 @@ Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQ
 
 New accounts receive a verification link that expires after 24 hours and cannot log in until it is used. Resend requests are limited to one database token refresh per minute and always return the same public response. Accounts created before email verification was enabled must have `email` backfilled and `email_verified_at` set before they can log in; after backfilling every legacy account, set the column requirement with `ALTER TABLE users ALTER COLUMN email SET NOT NULL;`.
 
-The Tag Lab and its workspace are available only to the verified administrator. Client routes redirect other visitors to login, and every GTM API route independently checks the signed application session. OAuth state and encrypted access cookies are bound to that application's user ID, so switching accounts in the same browser cannot reuse another account's Google authorization. Logging out expires the application session, pending OAuth state, and GTM access cookie together.
+The Tag Lab page and navigation link are visible to everyone, but its workspace launcher remains locked until the verified administrator signs in. Direct workspace visits redirect unauthorized visitors to login, and every GTM API route independently checks the signed application session. OAuth state and encrypted access cookies are bound to that application's user ID, so switching accounts in the same browser cannot reuse another account's Google authorization. Logging out expires the application session, pending OAuth state, and GTM access cookie together.
 
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 

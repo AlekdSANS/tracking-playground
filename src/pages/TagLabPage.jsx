@@ -1,4 +1,6 @@
 import { useState } from 'react'
+import { Link, useOutletContext } from 'react-router-dom'
+import { canAccessGtmLab } from '../utils/gtmAccess'
 import { isValidGtmContainerId } from '../utils/tagLab'
 
 const guides = [
@@ -9,12 +11,24 @@ const guides = [
 ]
 
 function TagLabPage() {
+  const { authReady = false, user = null } = useOutletContext() || {}
   const [containerId, setContainerId] = useState('')
   const [activeGuideId, setActiveGuideId] = useState('setup')
   const [feedback, setFeedback] = useState('')
   const normalizedId = containerId.trim().toUpperCase()
   const valid = isValidGtmContainerId(normalizedId)
   const guide = guides.find((item) => item.id === activeGuideId) || guides[0]
+  const hasAccess = authReady && canAccessGtmLab(user)
+
+  const accessMessage = !authReady
+    ? 'Checking your account access…'
+    : !user
+      ? 'Sign in with the verified administrator account to launch the workspace.'
+      : !user.email_verified
+        ? 'Verify the administrator email before launching the workspace.'
+        : Number(user.admin_status) !== 1
+          ? 'You can explore this guide, but only the verified administrator can launch the workspace.'
+          : 'Administrator access confirmed. Enter a valid container ID to continue.'
 
   function openWorkspace(event) {
     event.preventDefault()
@@ -34,7 +48,9 @@ function TagLabPage() {
           <div className="lab-panel-heading"><span>01</span><div><p>Connect the sandbox</p><h2>Add a practice container</h2></div></div>
           <label className="field">GTM container ID<input value={containerId} onChange={(event) => { setContainerId(event.target.value.toUpperCase()); setFeedback('') }} placeholder="GTM-ABC1234" maxLength="28" autoComplete="off" aria-invalid={Boolean(normalizedId) && !valid} /></label>
           <p className={`lab-field-help${normalizedId && !valid ? ' is-error' : ''}`}>{valid ? 'Valid ID. Your offline workspace is ready.' : normalizedId ? 'Use only an ID like GTM-ABC1234. Raw tags and scripts are rejected.' : 'Use a practice container you own. Its ID stays in this window only.'}</p>
-          <button className="primary-button" type="submit" disabled={!valid}>Open secure workspace</button>
+          <p className="form-status muted" aria-live="polite">{accessMessage}</p>
+          {!authReady || user ? null : <Link className="secondary-button" to="/login?access=verified-admin&next=%2Ftag-lab">Sign in to unlock</Link>}
+          <button className="primary-button" type="submit" disabled={!valid || !hasAccess}>Open secure workspace</button>
           <p className="form-status muted" aria-live="polite">{feedback}</p>
         </form>
         <section className="workspace-launch-preview" aria-label="Workspace security phases">

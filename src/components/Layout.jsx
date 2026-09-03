@@ -8,7 +8,7 @@ const navItems = [
   { to: '/', label: 'Home' },
   { to: '/forms', label: 'Forms Lab' },
   { to: '/utm-builder', label: 'UTM Builder' },
-  { to: '/tag-lab', label: 'GTM + GA4 Lab', requiresGtmAccess: true },
+  { to: '/tag-lab', label: 'GTM + GA4 Lab' },
   { to: '/login', label: 'Login' },
   { to: '/privacy', label: 'Privacy' },
 ]
@@ -98,10 +98,7 @@ function Layout() {
           className={isMenuOpen ? 'is-open' : undefined}
           aria-label="Main navigation"
         >
-          {navItems.filter((item) => (
-            !item.requiresGtmAccess
-            || (user?.email_verified && Number(user.admin_status) === 1)
-          )).map((item) => (
+          {navItems.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
