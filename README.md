@@ -77,6 +77,8 @@ Custom analytics events are withheld until analytics consent is granted. Once al
 | `/callback` | Callback request |
 | `/newsletter` | Newsletter signup |
 | `/utm-builder` | Campaign URL builder |
+| `/tag-lab` | Verified-admin-only GTM and GA4 lab |
+| `/tag-workspace` | Verified-admin-only disposable tag workspace |
 | `/login` | Registration and login |
 | `/thank-you` | Form success page |
 | `/privacy` | Consent and privacy information |
@@ -156,7 +158,7 @@ Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQ
 
 New accounts receive a verification link that expires after 24 hours and cannot log in until it is used. Resend requests are limited to one database token refresh per minute and always return the same public response. Accounts created before email verification was enabled must have `email` backfilled and `email_verified_at` set before they can log in; after backfilling every legacy account, set the column requirement with `ALTER TABLE users ALTER COLUMN email SET NOT NULL;`.
 
-The Tag Lab API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
+The Tag Lab and its workspace are available only to the verified administrator. Client routes redirect other visitors to login, and every GTM API route independently checks the signed application session. The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup
 
@@ -174,7 +176,7 @@ If an event fires in Tag Assistant but not on the public site, confirm that the 
 
 ## Admin diagnostics
 
-The first registered user receives `admin_status: 1`; later users receive `admin_status: 0`. Admin accounts can access the analytics debug panel, fire `debug_test_event`, populate forms with test data, and simulate conversion errors. Public visitors and basic users can still complete all real conversion flows.
+The first registered user receives `admin_status: 1`; later users receive `admin_status: 0`. After verifying their email, that administrator can access the GTM and GA4 lab, the analytics debug panel, test events, random form data, and simulated failures. Public visitors and basic users can still complete all real conversion flows, but cannot access GTM account integrations.
 
 > [!WARNING]
 > Register the intended administrator before opening a new deployment to public signups.
@@ -205,6 +207,7 @@ The repository is configured for Vercel deployment with SPA rewrites and serverl
 
 - Passwords are salted and hashed before storage.
 - Authentication uses a signed HTTP-only cookie.
+- GTM routes and API handlers require a verified administrator session.
 - Personal form data is not included in analytics events.
 - Secrets remain in local or Vercel environment variables.
 - GTM container changes must be published separately from application deployments.

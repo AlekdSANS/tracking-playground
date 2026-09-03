@@ -175,6 +175,27 @@ export function getSessionFromRequest(req) {
   return verifySessionToken(getCookie(req, COOKIE_NAME))
 }
 
+export function requireVerifiedAdminSession(req, res) {
+  const session = getSessionFromRequest(req)
+
+  if (!session) {
+    json(res, 401, { error: 'Sign in to access the GTM and GA4 lab.' })
+    return null
+  }
+
+  if (!session.email_verified) {
+    json(res, 403, { error: 'Verify your email before accessing the GTM and GA4 lab.' })
+    return null
+  }
+
+  if (Number(session.admin_status) !== 1) {
+    json(res, 403, { error: 'Only the verified administrator can access the GTM and GA4 lab.' })
+    return null
+  }
+
+  return session
+}
+
 export function setSessionCookie(res, token) {
   const secure = process.env.NODE_ENV === 'production' ? '; Secure' : ''
 

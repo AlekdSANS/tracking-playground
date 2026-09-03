@@ -8,7 +8,7 @@ const navItems = [
   { to: '/', label: 'Home' },
   { to: '/forms', label: 'Forms Lab' },
   { to: '/utm-builder', label: 'UTM Builder' },
-  { to: '/tag-lab', label: 'GTM + GA4 Lab' },
+  { to: '/tag-lab', label: 'GTM + GA4 Lab', requiresGtmAccess: true },
   { to: '/login', label: 'Login' },
   { to: '/privacy', label: 'Privacy' },
 ]
@@ -16,6 +16,7 @@ const navItems = [
 function Layout() {
   const [showConsentSettings, setShowConsentSettings] = useState(false)
   const [user, setUser] = useState(null)
+  const [authReady, setAuthReady] = useState(false)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [theme, setTheme] = useState(() => (
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
@@ -45,9 +46,15 @@ function Layout() {
         }
       })
       .catch(() => {})
+      .finally(() => {
+        if (active) {
+          setAuthReady(true)
+        }
+      })
 
     function handleUserChanged(event) {
       setUser(event.detail)
+      setAuthReady(true)
     }
 
     window.addEventListener('auth:user-changed', handleUserChanged)
@@ -91,7 +98,10 @@ function Layout() {
           className={isMenuOpen ? 'is-open' : undefined}
           aria-label="Main navigation"
         >
-          {navItems.map((item) => (
+          {navItems.filter((item) => (
+            !item.requiresGtmAccess
+            || (user?.email_verified && Number(user.admin_status) === 1)
+          )).map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
@@ -132,7 +142,7 @@ function Layout() {
       </header>
 
       <main className="page-shell">
-        <Outlet context={{ user, theme }} />
+        <Outlet context={{ authReady, user, theme }} />
       </main>
 
       <footer className="site-footer">

@@ -1,4 +1,4 @@
-import { json } from './_lib/auth.js'
+import { json, requireVerifiedAdminSession } from './_lib/auth.js'
 import {
   GTM_API_SESSION_SECONDS,
   clearOAuthStateCookie,
@@ -20,6 +20,7 @@ function returnToWorkspace(res, containerId, result) {
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' })
+  if (!requireVerifiedAdminSession(req, res)) return
   if (!isGtmApiConfigured()) return json(res, 503, { error: 'GTM API integration is not configured.' })
   const cookieState = getOAuthStateFromRequest(req)
   const queryState = String(req.query?.state || '')

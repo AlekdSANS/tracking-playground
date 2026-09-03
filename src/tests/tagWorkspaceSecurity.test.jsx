@@ -18,8 +18,32 @@ import {
   LIVE_GTM_SESSION_MS,
 } from '../utils/liveGtm'
 
-function renderApp(path) {
-  return render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)
+async function renderApp(path) {
+  const existingFetch = globalThis.fetch
+  vi.stubGlobal('fetch', vi.fn(async (url, options) => {
+    if (url === '/api/me') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: {
+            user_id: 'admin-1',
+            login: 'admin',
+            email: 'admin@example.com',
+            email_verified: true,
+            admin_status: 1,
+          },
+        }),
+      }
+    }
+
+    return existingFetch(url, options)
+  }))
+
+  let result
+  await act(async () => {
+    result = render(<MemoryRouter initialEntries={[path]}><App /></MemoryRouter>)
+  })
+  return result
 }
 
 afterEach(() => {
@@ -35,15 +59,15 @@ describe('workspace entry isolation', () => {
     expect(readWorkspaceContainerId('#container=GTM-ABC123%26next%3Dhttps%3A%2F%2Fevil.invalid')).toBe('')
   })
 
-  test('keeps the workspace locked when the fragment is missing or hostile', () => {
-    renderApp('/tag-workspace#container=javascript%3Aalert(1)')
+  test('keeps the workspace locked when the fragment is missing or hostile', async () => {
+    await renderApp('/tag-workspace#container=javascript%3Aalert(1)')
     expect(screen.getByRole('heading', { name: /valid gtm container id is required/i })).toBeInTheDocument()
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument()
     expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
   })
 
-  test('does not mount the main site shell or tracking console in a valid workspace', () => {
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+  test('does not mount the main site shell or tracking console in a valid workspace', async () => {
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     expect(screen.getByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
     expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
     expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
@@ -51,9 +75,9 @@ describe('workspace entry isolation', () => {
     expect(window.dataLayer).toEqual([])
   })
 
-  test('does not persist virtual-file edits to browser storage', () => {
+  test('does not persist virtual-file edits to browser storage', async () => {
     const storageSpy = vi.spyOn(Storage.prototype, 'setItem')
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     fireEvent.change(screen.getByRole('textbox', { name: /edit events\/page_view.json/i }), {
       target: { value: '{"event":"edited_event"}' },
     })
@@ -163,7 +187,7 @@ describe('disposable runner isolation', () => {
 
   test('mounts an opaque script-only iframe and destroys it on cancellation', async () => {
     const user = userEvent.setup()
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: /run in fresh sandbox/i }))
@@ -175,9 +199,9 @@ describe('disposable runner isolation', () => {
     expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
   })
 
-  test('destroys an unresponsive iframe at the hard timeout', () => {
+  test('destroys an unresponsive iframe at the hard timeout', async () => {
     vi.useFakeTimers()
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     fireEvent.click(screen.getByRole('button', { name: /run in fresh sandbox/i }))
     expect(screen.getByTitle(/disposable datalayer runtime/i)).toBeInTheDocument()
 
@@ -214,7 +238,7 @@ describe('disposable runner isolation', () => {
     }
     vi.stubGlobal('MessageChannel', FakeMessageChannel)
     const user = userEvent.setup()
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     await user.click(screen.getByRole('button', { name: /run in fresh sandbox/i }))
     const iframe = screen.queryByTitle(/disposable datalayer runtime/i)
     if (iframe) fireEvent.load(iframe)
@@ -264,7 +288,7 @@ describe('opt-in Live GTM boundary', () => {
   test('does not create a live frame until every disclosure and exact ID are confirmed', async () => {
     vi.stubGlobal('MessageChannel', InertMessageChannel)
     const user = userEvent.setup()
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
 
     expect(screen.queryByTitle(/restricted live gtm/i)).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /review and opt in/i }))
@@ -287,10 +311,10 @@ describe('opt-in Live GTM boundary', () => {
     expect(screen.queryByTitle(/restricted live gtm/i)).not.toBeInTheDocument()
   })
 
-  test('destroys the live frame when its ten-minute lease expires', () => {
+  test('destroys the live frame when its ten-minute lease expires', async () => {
     vi.useFakeTimers()
     vi.stubGlobal('MessageChannel', InertMessageChannel)
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
 
     fireEvent.click(screen.getByRole('button', { name: /review and opt in/i }))
     fireEvent.click(screen.getByLabelText(/i own or may test this container/i))
@@ -319,7 +343,7 @@ describe('read-only GTM API surface', () => {
       return { ok: true, json: async () => ({ disconnected: true }) }
     }))
     const user = userEvent.setup()
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
 
     expect(await screen.findByText(/GTM-SAFE123 was verified/i)).toBeInTheDocument()
     expect(screen.getByText(/^read-only GTM API$/i)).toBeInTheDocument()
@@ -335,7 +359,7 @@ describe('read-only GTM API surface', () => {
 
   test('shows setup guidance without exposing a connect action when OAuth is unconfigured', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => ({ ok: true, json: async () => ({ configured: false, connected: false }) })))
-    renderApp('/tag-workspace#container=GTM-SAFE123')
+    await renderApp('/tag-workspace#container=GTM-SAFE123')
     expect(await screen.findByText(/add the server-side Google OAuth settings/i)).toBeInTheDocument()
     expect(screen.getByText(/OAuth setup required/i)).toBeInTheDocument()
     expect(screen.queryByRole('link', { name: /connect Google Tag Manager/i })).not.toBeInTheDocument()

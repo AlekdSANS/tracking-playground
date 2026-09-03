@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { useSearchParams } from 'react-router-dom'
+import { useNavigate, useSearchParams } from 'react-router-dom'
 import { trackAuthError, trackAuthSuccess, trackLogout } from '../utils/analytics'
 
 async function requestAuth(path, body) {
@@ -55,8 +55,13 @@ function getAuthErrorType(message) {
 }
 
 function AuthPage() {
+  const navigate = useNavigate()
   const [searchParams] = useSearchParams()
   const verificationResult = searchParams.get('verification')
+  const requestedNext = searchParams.get('next')
+  const safeNext = requestedNext?.startsWith('/') && !requestedNext.startsWith('//')
+    ? requestedNext
+    : ''
   const [mode, setMode] = useState('login')
   const [user, setUser] = useState(null)
   const [name, setName] = useState('')
@@ -74,6 +79,10 @@ function AuthPage() {
 
     if (verificationResult === 'error') {
       return 'Email verification is temporarily unavailable. Try again.'
+    }
+
+    if (searchParams.get('access') === 'verified-admin') {
+      return 'Sign in with the verified administrator account to access the GTM and GA4 lab.'
     }
 
     return ''
@@ -128,6 +137,9 @@ function AuthPage() {
       trackAuthSuccess(mode, data.user)
       setPassword('')
       setStatus(mode === 'login' ? 'Logged in.' : 'Account created.')
+      if (mode === 'login' && safeNext) {
+        navigate(safeNext, { replace: true })
+      }
     } catch (error) {
       trackAuthError(mode, getAuthErrorType(error.message))
       setCanResend(error.message.toLowerCase().includes('verify your email'))

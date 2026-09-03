@@ -1,8 +1,9 @@
-import { json } from './_lib/auth.js'
+import { json, requireVerifiedAdminSession } from './_lib/auth.js'
 import { getGtmAccessFromRequest, readContainerSnapshot } from './_lib/gtmOAuth.js'
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' })
+  if (!requireVerifiedAdminSession(req, res)) return
   res.setHeader('Cache-Control', 'no-store')
   const session = getGtmAccessFromRequest(req)
   if (!session) return json(res, 401, { error: 'Connect Google Tag Manager again.' })

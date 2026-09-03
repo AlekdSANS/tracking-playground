@@ -1,8 +1,9 @@
-import { json } from './_lib/auth.js'
+import { json, requireVerifiedAdminSession } from './_lib/auth.js'
 import { clearGtmAccessCookie, clearOAuthStateCookie } from './_lib/gtmOAuth.js'
 
 export default function handler(req, res) {
   if (req.method !== 'POST') return json(res, 405, { error: 'Method not allowed' })
+  if (!requireVerifiedAdminSession(req, res)) return
   clearOAuthStateCookie(res)
   clearGtmAccessCookie(res)
   res.setHeader('Cache-Control', 'no-store')

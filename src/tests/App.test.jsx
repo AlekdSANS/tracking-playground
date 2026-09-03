@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { expect, test, vi } from 'vitest'
+import { afterEach, expect, test, vi } from 'vitest'
 import App from '../App'
 import ContactForm from '../components/ContactForm'
 import ConsentBanner from '../components/ConsentBanner'
@@ -23,6 +23,31 @@ function renderApp(initialEntries = ['/']) {
     </MemoryRouter>,
   )
 }
+
+function renderAdminApp(initialEntries) {
+  vi.spyOn(window, 'fetch').mockImplementation(async (url) => {
+    if (url === '/api/me') {
+      return {
+        ok: true,
+        json: async () => ({
+          user: {
+            user_id: 'admin-1',
+            login: 'admin',
+            email: 'admin@example.com',
+            email_verified: true,
+            admin_status: 1,
+          },
+        }),
+      }
+    }
+
+    return { ok: false, json: async () => ({ error: 'Not configured.' }) }
+  })
+
+  return renderApp(initialEntries)
+}
+
+afterEach(() => vi.restoreAllMocks())
 
 function renderContactForm() {
   return render(
@@ -516,11 +541,11 @@ test('validates GTM container IDs without accepting scripts', () => {
   expect(isValidGtmContainerId('G-ABC1234')).toBe(false)
 })
 
-test('shows the isolated GTM and GA4 lab guide', () => {
-  renderApp(['/tag-lab'])
+test('shows the isolated GTM and GA4 lab guide', async () => {
+  renderAdminApp(['/tag-lab'])
 
   expect(
-    screen.getByRole('heading', { name: /gtm \+ ga4 workspace launcher/i }),
+    await screen.findByRole('heading', { name: /gtm \+ ga4 workspace launcher/i }),
   ).toBeInTheDocument()
   expect(
     screen.getByRole('heading', { name: /secure workspace field guide/i }),
@@ -532,9 +557,9 @@ test('shows the isolated GTM and GA4 lab guide', () => {
 test('opens the offline workspace only for a valid GTM container ID', async () => {
   const user = userEvent.setup()
   const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
-  renderApp(['/tag-lab'])
+  renderAdminApp(['/tag-lab'])
 
-  const launchButton = screen.getByRole('button', { name: /open secure workspace/i })
+  const launchButton = await screen.findByRole('button', { name: /open secure workspace/i })
   expect(launchButton).toBeDisabled()
 
   await user.type(screen.getByLabelText(/gtm container id/i), 'GTM-TEST99')
@@ -551,10 +576,10 @@ test('opens the offline workspace only for a valid GTM container ID', async () =
 
 test('rejects pasted scripts in the GTM container field', async () => {
   const user = userEvent.setup()
-  renderApp(['/tag-lab'])
+  renderAdminApp(['/tag-lab'])
 
   await user.type(
-    screen.getByLabelText(/gtm container id/i),
+    await screen.findByLabelText(/gtm container id/i),
     '<script>alert(1)</script>',
   )
 
@@ -588,10 +613,10 @@ test('validates workspace files and flags unsafe data', () => {
   expect(readWorkspaceContainerId('#container=%3Cscript%3E')).toBe('')
 })
 
-test('renders the workspace without the site shell or tracking console', () => {
-  renderApp(['/tag-workspace#container=GTM-TEST99'])
+test('renders the workspace without the site shell or tracking console', async () => {
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
-  expect(screen.getByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
+  expect(await screen.findByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
   expect(screen.getByRole('complementary', { name: /virtual project files/i })).toBeInTheDocument()
   expect(screen.getByText(/^live gtm opt-in$/i)).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
@@ -609,9 +634,9 @@ test('groups virtual files and formats JSON safely', () => {
 
 test('creates and edits a virtual event file in memory', async () => {
   const user = userEvent.setup()
-  renderApp(['/tag-workspace#container=GTM-TEST99'])
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
-  await user.click(screen.getByRole('button', { name: /create new file/i }))
+  await user.click(await screen.findByRole('button', { name: /create new file/i }))
   await user.type(screen.getByLabelText(/new file path/i), 'events/signup.json')
   await user.click(screen.getByRole('button', { name: /^create$/i }))
 
@@ -699,9 +724,9 @@ test('builds contextual guidance and learning progress from workspace state', ()
 
 test('shows the GTM to GA4 flow and adds safe guide examples', async () => {
   const user = userEvent.setup()
-  renderApp(['/tag-workspace#container=GTM-TEST99'])
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
-  expect(screen.getByRole('complementary', { name: /contextual gtm and ga4 guide/i })).toBeInTheDocument()
+  expect(await screen.findByRole('complementary', { name: /contextual gtm and ga4 guide/i })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /build page_view/i })).toBeInTheDocument()
 
   await user.click(screen.getByRole('tab', { name: /^flow$/i }))
@@ -731,8 +756,9 @@ test('defines a network-disabled single-use runner contract', () => {
 
 test('creates and destroys a disposable runner iframe for each run', async () => {
   const user = userEvent.setup()
-  renderApp(['/tag-workspace#container=GTM-TEST99'])
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
+  await screen.findByRole('heading', { name: /datalayer workspace/i })
   expect(screen.queryByTitle(/disposable datalayer runtime/i)).not.toBeInTheDocument()
   await user.click(screen.getByRole('button', { name: /run in fresh sandbox/i }))
 

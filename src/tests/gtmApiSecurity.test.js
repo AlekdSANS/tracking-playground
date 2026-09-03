@@ -28,9 +28,11 @@ describe('GTM OAuth boundary', () => {
     const now = Date.parse('2026-09-02T12:00:00Z')
     const accessToken = 'ya29.private-practice-token'
     const sealed = sealAccessSession({ accessToken, scope: 'readonly', exp: Math.floor(now / 1000) + GTM_API_SESSION_SECONDS }, SECRET)
+    const [iv, encrypted, tag] = sealed.split('.')
+    const tamperedTag = `${tag.startsWith('A') ? 'B' : 'A'}${tag.slice(1)}`
     expect(sealed).not.toContain(accessToken)
     expect(openAccessSession(sealed, SECRET, now)).toEqual(expect.objectContaining({ accessToken, scope: 'readonly' }))
-    expect(openAccessSession(`${sealed.slice(0, -1)}x`, SECRET, now)).toBeNull()
+    expect(openAccessSession(`${iv}.${encrypted}.${tamperedTag}`, SECRET, now)).toBeNull()
     expect(openAccessSession(sealed, SECRET, now + ((GTM_API_SESSION_SECONDS + 1) * 1000))).toBeNull()
   })
 
