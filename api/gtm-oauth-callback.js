@@ -20,11 +20,12 @@ function returnToWorkspace(res, containerId, result) {
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' })
-  if (!requireVerifiedAdminSession(req, res)) return
+  const appSession = requireVerifiedAdminSession(req, res)
+  if (!appSession) return
   if (!isGtmApiConfigured()) return json(res, 503, { error: 'GTM API integration is not configured.' })
   const cookieState = getOAuthStateFromRequest(req)
   const queryState = String(req.query?.state || '')
-  const state = readOAuthState(queryState)
+  const state = readOAuthState(queryState, appSession.sub)
   clearOAuthStateCookie(res)
   if (!state || !cookieState || cookieState !== queryState) return json(res, 400, { error: 'OAuth state is invalid or expired.' })
   if (req.query?.error || !req.query?.code) return returnToWorkspace(res, state.containerId, 'cancelled')
@@ -33,6 +34,7 @@ export default async function handler(req, res) {
     const expiresIn = Math.min(token.expiresIn, GTM_API_SESSION_SECONDS)
     const session = sealAccessSession({
       accessToken: token.accessToken,
+      userId: appSession.sub,
       scope: 'readonly',
       exp: Math.floor(Date.now() / 1000) + expiresIn,
     })

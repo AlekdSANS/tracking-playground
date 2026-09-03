@@ -9,10 +9,11 @@ import {
 
 export default function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' })
-  if (!requireVerifiedAdminSession(req, res)) return
+  const appSession = requireVerifiedAdminSession(req, res)
+  if (!appSession) return
   if (!isGtmApiConfigured()) return json(res, 503, { error: 'GTM API integration is not configured.' })
   try {
-    const state = createOAuthState(req.query?.container)
+    const state = createOAuthState(req.query?.container, appSession.sub)
     setOAuthStateCookie(res, state)
     res.statusCode = 302
     res.setHeader('Cache-Control', 'no-store')

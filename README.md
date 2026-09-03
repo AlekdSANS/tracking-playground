@@ -136,7 +136,7 @@ Add these values to `.env.local` for development and to the Vercel project setti
 | `GTM_GOOGLE_CLIENT_ID` | Google OAuth web-client ID with the Tag Manager API enabled |
 | `GTM_GOOGLE_CLIENT_SECRET` | Server-only OAuth client secret |
 | `GTM_OAUTH_REDIRECT_URI` | Exact authorized callback URI, such as `http://localhost:3000/api/gtm-oauth-callback` |
-| `GTM_OAUTH_COOKIE_SECRET` | Random value of at least 32 characters used to encrypt short-lived GTM access cookies |
+| `GTM_OAUTH_COOKIE_SECRET` | Stable random value of at least 32 characters, separate from `SESSION_SECRET`, used to sign OAuth state and encrypt GTM access cookies |
 
 ```env
 DATABASE_URL=postgresql://USER:PASSWORD@YOUR-ENDPOINT-pooler.REGION.aws.neon.tech/neondb?sslmode=require
@@ -149,7 +149,7 @@ CONTACT_FROM_EMAIL=onboarding@resend.dev
 GTM_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
 GTM_GOOGLE_CLIENT_SECRET=your-google-oauth-client-secret
 GTM_OAUTH_REDIRECT_URI=http://localhost:3000/api/gtm-oauth-callback
-GTM_OAUTH_COOKIE_SECRET=replace-with-at-least-32-random-characters
+GTM_OAUTH_COOKIE_SECRET=replace-with-a-stable-separate-random-secret-of-at-least-32-characters
 ```
 
 Never commit `.env.local`. Resend's test sender generally delivers only to the email associated with the Resend account; use a verified domain for production delivery.
@@ -158,7 +158,9 @@ Before using authentication, run [`db/schema.sql`](db/schema.sql) in the Neon SQ
 
 New accounts receive a verification link that expires after 24 hours and cannot log in until it is used. Resend requests are limited to one database token refresh per minute and always return the same public response. Accounts created before email verification was enabled must have `email` backfilled and `email_verified_at` set before they can log in; after backfilling every legacy account, set the column requirement with `ALTER TABLE users ALTER COLUMN email SET NOT NULL;`.
 
-The Tag Lab and its workspace are available only to the verified administrator. Client routes redirect other visitors to login, and every GTM API route independently checks the signed application session. The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register the redirect URI exactly, and use `npx vercel dev` when testing the API locally.
+The Tag Lab and its workspace are available only to the verified administrator. Client routes redirect other visitors to login, and every GTM API route independently checks the signed application session. OAuth state and encrypted access cookies are bound to that application's user ID, so switching accounts in the same browser cannot reuse another account's Google authorization. Logging out expires the application session, pending OAuth state, and GTM access cookie together.
+
+The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup
 
@@ -205,9 +207,19 @@ The first registered user receives `admin_status: 1`; later users receive `admin
 
 The repository is configured for Vercel deployment with SPA rewrites and serverless API routes. Add every environment variable in Vercel, use Neon's pooled connection string for `DATABASE_URL`, and redeploy after changing environment values.
 
+For each Vercel environment you deploy:
+
+1. Set `APP_URL` to that environment's exact public origin.
+2. Set `GTM_OAUTH_REDIRECT_URI` to the exact callback URL on that origin and add the same URI to the Google OAuth web client.
+3. Generate separate high-entropy values for `SESSION_SECRET` and `GTM_OAUTH_COOKIE_SECRET`, each at least 32 characters, and keep them stable across deployments and function instances in that environment.
+4. Configure the Neon and Resend values, deploy, then verify registration, email confirmation, login, GTM connection, account switching, and logout from the deployed origin.
+
+Changing either cookie secret invalidates the corresponding active sessions. This hardening release also invalidates older GTM cookies that were not account-bound, so the administrator must connect Google Tag Manager once after deployment.
+
 - Passwords are salted and hashed before storage.
 - Authentication uses a signed HTTP-only cookie.
 - GTM routes and API handlers require a verified administrator session.
+- Google OAuth state and encrypted GTM access are bound to the same application account and cleared during logout.
 - Personal form data is not included in analytics events.
 - Secrets remain in local or Vercel environment variables.
 - GTM container changes must be published separately from application deployments.

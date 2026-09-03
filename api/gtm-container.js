@@ -3,9 +3,10 @@ import { getGtmAccessFromRequest, readContainerSnapshot } from './_lib/gtmOAuth.
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') return json(res, 405, { error: 'Method not allowed' })
-  if (!requireVerifiedAdminSession(req, res)) return
+  const appSession = requireVerifiedAdminSession(req, res)
+  if (!appSession) return
   res.setHeader('Cache-Control', 'no-store')
-  const session = getGtmAccessFromRequest(req)
+  const session = getGtmAccessFromRequest(req, appSession.sub)
   if (!session) return json(res, 401, { error: 'Connect Google Tag Manager again.' })
   try {
     const snapshot = await readContainerSnapshot(req.query?.publicId, session.accessToken)

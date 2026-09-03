@@ -17,21 +17,22 @@ afterEach(() => vi.unstubAllGlobals())
 describe('GTM OAuth boundary', () => {
   test('signs short-lived state and rejects tampering or expiry', () => {
     const now = Date.parse('2026-09-02T12:00:00Z')
-    const state = createOAuthState('gtm-safe123', SECRET, now)
-    expect(readOAuthState(state, SECRET, now)).toEqual(expect.objectContaining({ containerId: 'GTM-SAFE123' }))
-    expect(readOAuthState(`${state}x`, SECRET, now)).toBeNull()
-    expect(readOAuthState(state, `${SECRET}-wrong`, now)).toBeNull()
-    expect(readOAuthState(state, SECRET, now + (11 * 60 * 1000))).toBeNull()
+    const state = createOAuthState('gtm-safe123', 'admin-1', SECRET, now)
+    expect(readOAuthState(state, 'admin-1', SECRET, now)).toEqual(expect.objectContaining({ containerId: 'GTM-SAFE123' }))
+    expect(readOAuthState(state, 'admin-2', SECRET, now)).toBeNull()
+    expect(readOAuthState(`${state}x`, 'admin-1', SECRET, now)).toBeNull()
+    expect(readOAuthState(state, 'admin-1', `${SECRET}-wrong`, now)).toBeNull()
+    expect(readOAuthState(state, 'admin-1', SECRET, now + (11 * 60 * 1000))).toBeNull()
   })
 
   test('encrypts access tokens and enforces their expiry', () => {
     const now = Date.parse('2026-09-02T12:00:00Z')
     const accessToken = 'ya29.private-practice-token'
-    const sealed = sealAccessSession({ accessToken, scope: 'readonly', exp: Math.floor(now / 1000) + GTM_API_SESSION_SECONDS }, SECRET)
+    const sealed = sealAccessSession({ accessToken, userId: 'admin-1', scope: 'readonly', exp: Math.floor(now / 1000) + GTM_API_SESSION_SECONDS }, SECRET)
     const [iv, encrypted, tag] = sealed.split('.')
     const tamperedTag = `${tag.startsWith('A') ? 'B' : 'A'}${tag.slice(1)}`
     expect(sealed).not.toContain(accessToken)
-    expect(openAccessSession(sealed, SECRET, now)).toEqual(expect.objectContaining({ accessToken, scope: 'readonly' }))
+    expect(openAccessSession(sealed, SECRET, now)).toEqual(expect.objectContaining({ accessToken, userId: 'admin-1', scope: 'readonly' }))
     expect(openAccessSession(`${iv}.${encrypted}.${tamperedTag}`, SECRET, now)).toBeNull()
     expect(openAccessSession(sealed, SECRET, now + ((GTM_API_SESSION_SECONDS + 1) * 1000))).toBeNull()
   })

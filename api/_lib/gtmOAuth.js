@@ -28,6 +28,12 @@ function sign(value, secret) {
   return crypto.createHmac('sha256', secret).update(value).digest('base64url')
 }
 
+function getAccountBinding(userId, secret) {
+  const normalized = String(userId || '').trim()
+  if (!normalized || normalized.length > 200) throw new Error('An authenticated account is required')
+  return sign(`account:${normalized}`, secret)
+}
+
 function safeEqual(left, right) {
   const leftBuffer = Buffer.from(left || '')
   const rightBuffer = Buffer.from(right || '')
@@ -67,23 +73,30 @@ export function getGtmOAuthConfig() {
   }
 }
 
-export function createOAuthState(containerId, secret = getSecret(), now = Date.now()) {
+export function createOAuthState(containerId, userId, secret = getSecret(), now = Date.now()) {
   const normalized = String(containerId || '').trim().toUpperCase()
   if (!isValidGtmApiContainerId(normalized)) throw new Error('A valid GTM container ID is required')
   const payload = Buffer.from(JSON.stringify({
     containerId: normalized,
+    accountBinding: getAccountBinding(userId, secret),
     nonce: crypto.randomBytes(24).toString('base64url'),
     exp: Math.floor(now / 1000) + 10 * 60,
   })).toString('base64url')
   return `${payload}.${sign(payload, secret)}`
 }
 
-export function readOAuthState(value, secret = getSecret(), now = Date.now()) {
+export function readOAuthState(value, userId, secret = getSecret(), now = Date.now()) {
   const [payload, signature] = String(value || '').split('.')
   if (!payload || !signature || !safeEqual(signature, sign(payload, secret))) return null
   try {
     const state = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
-    if (!isValidGtmApiContainerId(state.containerId) || !state.nonce || state.exp <= Math.floor(now / 1000)) return null
+    const expectedBinding = getAccountBinding(userId, secret)
+    if (
+      !isValidGtmApiContainerId(state.containerId)
+      || !state.nonce
+      || !safeEqual(state.accountBinding, expectedBinding)
+      || state.exp <= Math.floor(now / 1000)
+    ) return null
     return state
   } catch {
     return null
@@ -105,7 +118,7 @@ export function openAccessSession(value, secret = getSecret(), now = Date.now())
     decipher.setAuthTag(Buffer.from(tagValue, 'base64url'))
     const decrypted = Buffer.concat([decipher.update(Buffer.from(encryptedValue, 'base64url')), decipher.final()])
     const session = JSON.parse(decrypted.toString('utf8'))
-    if (!session.accessToken || !session.exp || session.exp <= Math.floor(now / 1000)) return null
+    if (!session.accessToken || !session.userId || !session.exp || session.exp <= Math.floor(now / 1000)) return null
     return session
   } catch {
     return null
@@ -117,7 +130,7 @@ export function setOAuthStateCookie(res, value) {
 }
 
 export function clearOAuthStateCookie(res) {
-  appendCookie(res, `${GTM_STATE_COOKIE}=; HttpOnly; Path=/api; Max-Age=0; SameSite=Lax`)
+  appendCookie(res, `${GTM_STATE_COOKIE}=${cookieSuffix(0)}`)
 }
 
 export function setGtmAccessCookie(res, value, maxAge = GTM_API_SESSION_SECONDS) {
@@ -125,17 +138,19 @@ export function setGtmAccessCookie(res, value, maxAge = GTM_API_SESSION_SECONDS)
 }
 
 export function clearGtmAccessCookie(res) {
-  appendCookie(res, `${GTM_ACCESS_COOKIE}=; HttpOnly; Path=/api; Max-Age=0; SameSite=Strict`)
+  appendCookie(res, `${GTM_ACCESS_COOKIE}=${cookieSuffix(0, 'Strict')}`)
 }
 
 export function getOAuthStateFromRequest(req) {
   return getCookie(req, GTM_STATE_COOKIE)
 }
 
-export function getGtmAccessFromRequest(req) {
+export function getGtmAccessFromRequest(req, userId) {
   if (!isGtmApiConfigured()) return null
   const value = getCookie(req, GTM_ACCESS_COOKIE)
-  return value ? openAccessSession(value) : null
+  const session = value ? openAccessSession(value) : null
+  if (!session) return null
+  return safeEqual(session.userId, String(userId || '')) ? session : null
 }
 
 export function buildGoogleAuthorizationUrl(state, config = getGtmOAuthConfig()) {

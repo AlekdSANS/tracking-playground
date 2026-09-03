@@ -269,13 +269,19 @@ describe('authentication API with PostgreSQL persistence', () => {
     expect(emailDelivery.sendVerificationEmail).toHaveBeenCalledOnce()
   })
 
-  test('logs out by expiring the existing session cookie', async () => {
+  test('logs out by expiring the application and GTM cookies', async () => {
     const response = createResponse()
 
     await logoutHandler(createRequest(), response)
 
     expect(response.statusCode).toBe(200)
     expect(response.json()).toEqual({ user: null })
-    expect(response.getHeader('Set-Cookie')).toContain('Max-Age=0')
+    const cookies = response.getHeader('Set-Cookie')
+    expect(cookies).toHaveLength(3)
+    expect(cookies).toEqual(expect.arrayContaining([
+      expect.stringMatching(/^analytics_practice_session=.*Max-Age=0/),
+      expect.stringMatching(/^gtm_api_oauth_state=.*Max-Age=0/),
+      expect.stringMatching(/^gtm_api_access=.*Max-Age=0/),
+    ]))
   })
 })
