@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, expect, test, vi } from 'vitest'
@@ -812,6 +812,39 @@ test('builds a recommended event without code and keeps the code editor optional
   expect(editor.value).toContain('"event": "sign_up"')
   expect(editor.value).toContain('"method": "email"')
   expect(screen.getByRole('tab', { name: /code editor/i })).toHaveAttribute('aria-selected', 'true')
+})
+
+test('walks a generated event through the exact GTM configuration and parameter map', async () => {
+  const user = userEvent.setup()
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
+
+  await screen.findByRole('heading', { name: /describe the action.*get the implementation/i })
+  await user.click(screen.getByRole('button', { name: /configure this event in gtm/i }))
+
+  const walkthrough = screen.getByRole('region', { name: /configure generate_lead in gtm/i })
+  expect(screen.getByRole('tab', { name: /gtm walkthrough/i })).toHaveAttribute('aria-selected', 'true')
+  expect(within(walkthrough).getByRole('columnheader', { name: /website event/i })).toBeInTheDocument()
+  expect(within(walkthrough).getByRole('columnheader', { name: /gtm variable or trigger/i })).toBeInTheDocument()
+  expect(within(walkthrough).getAllByText('form_name').length).toBeGreaterThan(1)
+  expect(within(walkthrough).getByText('DLV - form_name')).toBeInTheDocument()
+  expect(within(walkthrough).getByText('Custom Event trigger')).toBeInTheDocument()
+  expect(within(walkthrough).getByText('Event name')).toBeInTheDocument()
+  expect(within(walkthrough).getAllByRole('listitem')).toHaveLength(10)
+  await user.click(within(walkthrough).getByRole('button', { name: /create a ga4 event tag/i }))
+  expect(within(walkthrough).getAllByText(/Google Analytics: GA4 Event/i)).toHaveLength(2)
+
+  await user.click(within(walkthrough).getByRole('button', { name: /^mark complete$/i }))
+  expect(within(walkthrough).getByLabelText(/1 of 10 GTM steps complete/i)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('tab', { name: /no-code builder/i }))
+  await user.click(screen.getByRole('tab', { name: /gtm walkthrough/i }))
+  expect(screen.getByLabelText(/1 of 10 GTM steps complete/i)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('tab', { name: /no-code builder/i }))
+  await user.click(screen.getByRole('button', { name: /sign up.*new account/i }))
+  await user.click(screen.getByRole('tab', { name: /gtm walkthrough/i }))
+  expect(screen.getByRole('heading', { name: /configure sign_up in gtm/i })).toBeInTheDocument()
+  expect(screen.getByLabelText(/0 of 10 GTM steps complete/i)).toBeInTheDocument()
 })
 
 test('defines a network-disabled single-use runner contract', () => {

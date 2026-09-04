@@ -166,6 +166,8 @@ The workspace opens with a ten-lesson GTM + GA4 setup course covering property c
 
 The center workspace opens in a no-code event builder with presets for `generate_lead`, `login`, `sign_up`, and `purchase`. Event names, successful-action descriptions, typed example parameters, and personal-information checks produce synchronized data object, JavaScript, React, plain HTML, and GTM configuration outputs. Unsafe or possibly personal fields are excluded and block copying or saving. Learners can save a validated event into an in-memory project file and switch to the original code editor at any time.
 
+The GTM walkthrough turns the generated event into a dynamic ten-step configuration checklist. It gives the exact Variables, Triggers, and Tags click paths; generates Data Layer Variable, Custom Event trigger, and GA4 Event tag names; maps each website parameter to its GTM variable and GA4 field; and keeps completion progress in the current browser window.
+
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup

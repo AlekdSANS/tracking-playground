@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import GtmApiPanel from '../components/GtmApiPanel'
+import GtmConfigurationWalkthrough from '../components/GtmConfigurationWalkthrough'
 import { GtmSetupChecklist, GtmSetupLesson } from '../components/GtmSetupCourse'
 import LiveGtmPanel from '../components/LiveGtmPanel'
 import NoCodeEventBuilder from '../components/NoCodeEventBuilder'
@@ -56,6 +57,7 @@ function TagWorkspacePage() {
   const [isCreatingFile, setIsCreatingFile] = useState(false)
   const [workspaceMode, setWorkspaceMode] = useState('builder')
   const [eventDraft, setEventDraft] = useState(() => createEventDraft())
+  const [completedGtmSteps, setCompletedGtmSteps] = useState(() => new Set())
   const [guideTab, setGuideTab] = useState('course')
   const [activeLessonId, setActiveLessonId] = useState(GTM_SETUP_LESSONS[0].id)
   const [setupValues, setSetupValues] = useState(() => createGtmSetupValues(containerId))
@@ -312,6 +314,20 @@ function TagWorkspacePage() {
     setNotice(`${fileName} created from the no-code builder.`)
   }
 
+  function updateEventDraft(update) {
+    setEventDraft(update)
+    setCompletedGtmSteps(new Set())
+  }
+
+  function toggleGtmStep(stepId) {
+    setCompletedGtmSteps((current) => {
+      const next = new Set(current)
+      if (next.has(stepId)) next.delete(stepId)
+      else next.add(stepId)
+      return next
+    })
+  }
+
   function importGtmSnapshot(snapshot) {
     const comparison = compareWorkspaceToGtm(files, snapshot)
     const safeSnapshot = {
@@ -355,8 +371,10 @@ function TagWorkspacePage() {
         </aside>
 
         <section className="workspace-main-column" aria-label="Event workspace">
-          <div className="workspace-mode-switch" role="tablist" aria-label="Workspace mode"><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}><span aria-hidden="true">◇</span>No-code builder</button><button type="button" role="tab" aria-selected={workspaceMode === 'code'} className={workspaceMode === 'code' ? 'is-active' : ''} onClick={() => setWorkspaceMode('code')}><span aria-hidden="true">{'{ }'}</span>Code editor</button></div>
-          {workspaceMode === 'builder' ? <NoCodeEventBuilder draft={eventDraft} onChange={setEventDraft} onSave={saveBuilderEvent} /> : <section className="workspace-editor" aria-label="File editor">
+          <div className="workspace-mode-switch" role="tablist" aria-label="Workspace mode"><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}><span aria-hidden="true">◇</span>No-code builder</button><button type="button" role="tab" aria-selected={workspaceMode === 'gtm'} className={workspaceMode === 'gtm' ? 'is-active' : ''} onClick={() => setWorkspaceMode('gtm')}><span aria-hidden="true">→</span>GTM walkthrough</button><button type="button" role="tab" aria-selected={workspaceMode === 'code'} className={workspaceMode === 'code' ? 'is-active' : ''} onClick={() => setWorkspaceMode('code')}><span aria-hidden="true">{'{ }'}</span>Code editor</button></div>
+          {workspaceMode === 'builder' && <NoCodeEventBuilder draft={eventDraft} onChange={updateEventDraft} onSave={saveBuilderEvent} onOpenWalkthrough={() => setWorkspaceMode('gtm')} />}
+          {workspaceMode === 'gtm' && <GtmConfigurationWalkthrough draft={eventDraft} completedSteps={completedGtmSteps} onToggleStep={toggleGtmStep} onBack={() => setWorkspaceMode('builder')} />}
+          {workspaceMode === 'code' && <section className="workspace-editor" aria-label="File editor">
             <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
             <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
             <div className="workspace-editor-status"><span className={validation.valid ? 'is-valid' : 'is-invalid'}>{validation.valid ? '● Valid' : '● Invalid'}</span><span>{selectedFile.endsWith('.json') ? 'JSON' : 'Markdown'}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>{content.length.toLocaleString()} chars</span><span>{byteSize.toLocaleString()} bytes</span></div>
@@ -410,7 +428,7 @@ function TagWorkspacePage() {
         <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
         <GtmApiPanel containerId={containerId} onImportSnapshot={importGtmSnapshot} />
       </div>
-      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setWorkspaceMode('builder'); setEventDraft(createEventDraft()); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace, builder, and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
+      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setWorkspaceMode('builder'); setEventDraft(createEventDraft()); setCompletedGtmSteps(new Set()); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace, builder, and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
   )
 }

@@ -15,10 +15,9 @@ const OUTPUT_TABS = [
   ['javascript', 'JavaScript'],
   ['react', 'React'],
   ['html', 'HTML'],
-  ['gtm', 'GTM steps'],
 ]
 
-function NoCodeEventBuilder({ draft, onChange, onSave }) {
+function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
   const [outputTab, setOutputTab] = useState('dataLayer')
   const [copyNotice, setCopyNotice] = useState('')
   const validation = useMemo(() => validateEventDraft(draft), [draft])
@@ -56,7 +55,7 @@ function NoCodeEventBuilder({ draft, onChange, onSave }) {
 
   async function copyOutput() {
     if (!validation.safe) return
-    const value = outputTab === 'gtm' ? outputs.gtm.map((step, index) => `${index + 1}. ${step}`).join('\n') : outputs[outputTab]
+    const value = outputs[outputTab]
     if (!navigator.clipboard?.writeText) {
       setCopyNotice('Clipboard is unavailable. Select the output and copy it manually.')
       return
@@ -109,9 +108,10 @@ function NoCodeEventBuilder({ draft, onChange, onSave }) {
       <div className="event-builder-output">
         <div className="event-output-tabs" role="tablist" aria-label="Generated event formats">{OUTPUT_TABS.map(([id, label]) => <button type="button" role="tab" aria-selected={outputTab === id} className={outputTab === id ? 'is-active' : ''} onClick={() => { setOutputTab(id); setCopyNotice('') }} key={id}>{label}</button>)}</div>
         <div className="event-output-heading"><div><span>Generated output</span><strong>{OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]}</strong></div>{recommended ? <b>GA4 recommended</b> : <b className="is-custom">Custom</b>}</div>
-        {outputTab === 'gtm' ? <ol className="event-output-gtm">{outputs.gtm.map((step) => <li key={step}>{step}</li>)}</ol> : <pre aria-label={`${OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]} output`}><code>{outputs[outputTab]}</code></pre>}
+        <pre aria-label={`${OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]} output`}><code>{outputs[outputTab]}</code></pre>
         <div className="event-placement-guidance"><strong>Where does this code go?</strong><p>{getPlacementGuidance(draft.action)}</p></div>
         <div className="event-output-actions"><button type="button" onClick={copyOutput} disabled={!validation.safe}>Copy this output</button><button type="button" onClick={() => onSave(outputs.payload)} disabled={!validation.safe}>Save and open in code editor</button></div>
+        <button className="event-builder-gtm-next" type="button" onClick={onOpenWalkthrough} disabled={!validation.safe}><span>Next step</span><strong>Configure this event in GTM</strong><i aria-hidden="true">→</i></button>
         {copyNotice && <p className="event-copy-notice" role="status">{copyNotice}</p>}
         {!validation.safe && <small>Resolve every validation and privacy warning before copying or saving.</small>}
       </div>

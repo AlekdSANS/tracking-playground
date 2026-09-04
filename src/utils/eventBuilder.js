@@ -152,6 +152,7 @@ function toElementId(eventName) {
 
 export function createEventOutputs(draft) {
   const payload = buildEventPayload(draft)
+  const gtmConfiguration = createGtmConfiguration(draft)
   const payloadJson = JSON.stringify(payload, null, 2)
   const indentedPayload = payloadJson.split('\n').map((line, index) => index === 0 ? line : `  ${line}`).join('\n')
   const functionName = toFunctionName(payload.event)
@@ -164,12 +165,127 @@ export function createEventOutputs(draft) {
     react: `function ${functionName}() {\n  window.dataLayer = window.dataLayer || []\n\n  window.dataLayer.push(${indentedPayload})\n}`,
     html: `<button type="button" id="${elementId}">Complete action</button>\n\n<script>\n  document.querySelector('#${elementId}').addEventListener('click', function () {\n    window.dataLayer = window.dataLayer || [];\n    window.dataLayer.push(${safeHtmlPayload.split('\n').map((line, index) => index === 0 ? line : `    ${line}`).join('\n')});\n  });\n</script>`,
     gtm: [
-      `In GTM, open Triggers → New → Trigger Configuration → Custom Event.`,
-      `Enter ${payload.event} as the Custom event name and save the trigger.`,
-      ...Object.keys(payload).filter((name) => name !== 'event').map((name) => `Create Variables → New → Data Layer Variable with Data Layer Variable Name: ${name}.`),
-      `Open Tags → New → Tag Configuration → Google Analytics: GA4 Event.`,
-      `Set Event Name to ${payload.event}, add the generated variables as Event Parameters, attach the ${payload.event} trigger, and save.`,
-      'Use Preview and Tag Assistant before publishing.',
+      ...gtmConfiguration.steps.map((step) => `${step.title}: ${step.instruction}`),
+    ],
+  }
+}
+
+export function createGtmConfiguration(draft) {
+  const payload = buildEventPayload(draft)
+  const eventName = payload.event
+  const parameters = Object.keys(payload).filter((name) => name !== 'event').map((name) => ({
+    source: name,
+    gtmVariable: `DLV - ${name}`,
+    variableReference: `{{DLV - ${name}}}`,
+    ga4Parameter: name,
+  }))
+  const parameterNames = parameters.map((parameter) => parameter.source)
+  const parameterSummary = parameterNames.length ? parameterNames.join(', ') : 'No event parameters'
+
+  return {
+    eventName,
+    triggerName: `CE - ${eventName}`,
+    tagName: `GA4 Event - ${eventName}`,
+    parameters,
+    mapping: [
+      { source: 'event', gtmVariable: 'Custom Event trigger', ga4Parameter: 'Event name' },
+      ...parameters,
+    ],
+    steps: [
+      {
+        id: 'open-variables',
+        area: 'Variables',
+        title: 'Open Variables',
+        path: 'Workspace → Variables',
+        instruction: 'In the left GTM menu, select Variables. User-Defined Variables is where GTM will learn the extra values pushed by the website.',
+        valueLabel: 'Menu',
+        value: 'Variables',
+      },
+      {
+        id: 'create-data-layer-variables',
+        area: 'Variables',
+        title: 'Create Data Layer Variables',
+        path: 'User-Defined Variables → New → Variable Configuration → Data Layer Variable',
+        instruction: parameterNames.length
+          ? `Create one variable for each website parameter: ${parameterSummary}. Enter the parameter name exactly in Data Layer Variable Name and name the GTM variable “DLV - parameter_name”.`
+          : 'This event has no extra parameters, so no Data Layer Variable is required. Mark this step complete and continue.',
+        valueLabel: 'Variables to create',
+        value: parameters.map((parameter) => `${parameter.gtmVariable} = ${parameter.source}`).join('\n') || 'None for this event',
+      },
+      {
+        id: 'open-triggers',
+        area: 'Triggers',
+        title: 'Open Triggers',
+        path: 'Workspace → Triggers',
+        instruction: 'Select Triggers in the left GTM menu. A trigger listens for the event value pushed into the data layer.',
+        valueLabel: 'Menu',
+        value: 'Triggers',
+      },
+      {
+        id: 'create-custom-event-trigger',
+        area: 'Triggers',
+        title: 'Create the Custom Event trigger',
+        path: 'New → Trigger Configuration → Custom Event',
+        instruction: `Enter “${eventName}” in Custom event name, choose All Custom Events, and name the trigger “CE - ${eventName}”.`,
+        valueLabel: 'Custom event name',
+        value: eventName,
+      },
+      {
+        id: 'open-tags',
+        area: 'Tags',
+        title: 'Open Tags',
+        path: 'Workspace → Tags',
+        instruction: 'Select Tags in the left GTM menu. The tag turns the website event into an event sent to Google Analytics.',
+        valueLabel: 'Menu',
+        value: 'Tags',
+      },
+      {
+        id: 'create-ga4-event-tag',
+        area: 'Tags',
+        title: 'Create a GA4 Event tag',
+        path: 'New → Tag Configuration → Google Analytics → Google Analytics: GA4 Event',
+        instruction: `Choose Google Analytics: GA4 Event and name the tag “GA4 Event - ${eventName}”. Select the Google tag you created during setup when GTM asks for a Measurement ID or Google tag.`,
+        valueLabel: 'Tag name',
+        value: `GA4 Event - ${eventName}`,
+      },
+      {
+        id: 'enter-event-name',
+        area: 'Tags',
+        title: 'Enter the event name',
+        path: 'Tag Configuration → Event Name',
+        instruction: `Enter “${eventName}” exactly. This must match the event value in the website dataLayer push and the Custom Event trigger.`,
+        valueLabel: 'Event Name',
+        value: eventName,
+      },
+      {
+        id: 'add-event-parameters',
+        area: 'Tags',
+        title: 'Add event parameters',
+        path: 'Event Parameters → Add parameter',
+        instruction: parameterNames.length
+          ? 'For each row, use the website parameter name as Parameter Name and its matching Data Layer Variable as Value.'
+          : 'This event has no extra parameters, so leave Event Parameters empty.',
+        valueLabel: 'Parameter Name → Value',
+        value: parameters.map((parameter) => `${parameter.ga4Parameter} → ${parameter.variableReference}`).join('\n') || 'No parameters to add',
+      },
+      {
+        id: 'attach-trigger',
+        area: 'Tags',
+        title: 'Attach the trigger',
+        path: 'Triggering → Choose a trigger',
+        instruction: `Select “CE - ${eventName}”. The tag will now fire only when GTM receives the ${eventName} event.`,
+        valueLabel: 'Trigger',
+        value: `CE - ${eventName}`,
+      },
+      {
+        id: 'save-tag',
+        area: 'Tags',
+        title: 'Save the tag',
+        path: 'Save',
+        instruction: 'Select Save. Then use Preview to test the website action in Tag Assistant before you publish the container.',
+        valueLabel: 'Final check',
+        value: 'Save → Preview → test the successful action',
+      },
     ],
   }
 }

@@ -3,6 +3,7 @@ import {
   RECOMMENDED_EVENT_PRESETS,
   buildEventPayload,
   createEventDraft,
+  createGtmConfiguration,
   createEventOutputs,
   getPlacementGuidance,
   validateEventDraft,
@@ -23,7 +24,21 @@ describe('no-code GA4 event builder', () => {
     expect(outputs.javascript).toMatch(/window\.dataLayer\.push/)
     expect(outputs.react).toMatch(/function trackGenerateLead\(\)/)
     expect(outputs.html).toMatch(/addEventListener\('click'/)
-    expect(outputs.gtm.join(' ')).toMatch(/Custom Event.*Data Layer Variable.*GA4 Event.*Preview/i)
+    expect(outputs.gtm.join(' ')).toMatch(/Data Layer Variable.*Custom Event.*GA4 Event.*Preview/i)
+  })
+
+  test('builds an exact ten-step GTM walkthrough and parameter map', () => {
+    const configuration = createGtmConfiguration(createEventDraft('generate_lead'))
+
+    expect(configuration.steps).toHaveLength(10)
+    expect(configuration.triggerName).toBe('CE - generate_lead')
+    expect(configuration.tagName).toBe('GA4 Event - generate_lead')
+    expect(configuration.mapping.slice(0, 3)).toEqual([
+      { source: 'event', gtmVariable: 'Custom Event trigger', ga4Parameter: 'Event name' },
+      { source: 'form_name', gtmVariable: 'DLV - form_name', variableReference: '{{DLV - form_name}}', ga4Parameter: 'form_name' },
+      { source: 'lead_type', gtmVariable: 'DLV - lead_type', variableReference: '{{DLV - lead_type}}', ga4Parameter: 'lead_type' },
+    ])
+    expect(configuration.steps.map((step) => step.path).join(' ')).toMatch(/Variables.*Data Layer Variable.*Triggers.*Custom Event.*Tags.*GA4 Event.*Event Name.*Event Parameters.*Triggering.*Save/i)
   })
 
   test('blocks and excludes possible personal information from generated code', () => {
