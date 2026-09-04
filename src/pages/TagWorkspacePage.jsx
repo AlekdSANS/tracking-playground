@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom'
 import GtmApiPanel from '../components/GtmApiPanel'
+import { GtmSetupChecklist, GtmSetupLesson } from '../components/GtmSetupCourse'
 import LiveGtmPanel from '../components/LiveGtmPanel'
 import {
   WORKSPACE_MAX_FILES,
@@ -21,6 +22,7 @@ import {
 } from '../utils/tagWorkspaceGuide'
 import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS } from '../utils/tagRunner'
 import { compareWorkspaceToGtm } from '../utils/gtmAudit'
+import { GTM_SETUP_LESSONS, createGtmSetupValues, validateGtmSetupLesson } from '../utils/gtmSetupCourse'
 
 const CORE_FILES = new Set(['README.md', 'container.json'])
 
@@ -50,7 +52,11 @@ function TagWorkspacePage() {
   const [selectedFile, setSelectedFile] = useState('events/page_view.json')
   const [newFileName, setNewFileName] = useState('')
   const [isCreatingFile, setIsCreatingFile] = useState(false)
-  const [guideTab, setGuideTab] = useState('context')
+  const [guideTab, setGuideTab] = useState('course')
+  const [activeLessonId, setActiveLessonId] = useState(GTM_SETUP_LESSONS[0].id)
+  const [setupValues, setSetupValues] = useState(() => createGtmSetupValues(containerId))
+  const [completedSetupLessons, setCompletedSetupLessons] = useState(() => new Set())
+  const [setupNotice, setSetupNotice] = useState(null)
   const [cursor, setCursor] = useState({ line: 1, column: 1 })
   const [activeRun, setActiveRun] = useState(null)
   const [runnerStatus, setRunnerStatus] = useState('idle')
@@ -65,6 +71,8 @@ function TagWorkspacePage() {
   const guideContext = useMemo(() => getWorkspaceGuideContext(selectedFile, validation), [selectedFile, validation])
   const guideProgress = useMemo(() => getGuideProgress({ selectedFile, validation, modified: modifiedFiles.has(selectedFile), output }), [modifiedFiles, output, selectedFile, validation])
   const completedGuideSteps = guideProgress.filter((step) => step.complete).length
+  const activeLessonIndex = Math.max(0, GTM_SETUP_LESSONS.findIndex((lesson) => lesson.id === activeLessonId))
+  const activeLesson = GTM_SETUP_LESSONS[activeLessonIndex]
 
   useEffect(() => () => runnerPortRef.current?.close(), [])
 
@@ -114,8 +122,46 @@ function TagWorkspacePage() {
 
   function selectFile(name) {
     setSelectedFile(name)
+    setGuideTab('context')
     setCursor({ line: 1, column: 1 })
     setNotice('')
+  }
+
+  function selectSetupLesson(lessonId) {
+    setActiveLessonId(lessonId)
+    setGuideTab('course')
+    setSetupNotice(null)
+  }
+
+  function updateSetupValue(key, value) {
+    setSetupValues((current) => ({ ...current, [key]: value }))
+    setCompletedSetupLessons((current) => {
+      const lesson = GTM_SETUP_LESSONS.find((item) => item.field.key === key)
+      if (!lesson || !current.has(lesson.id)) return current
+      const next = new Set(current)
+      next.delete(lesson.id)
+      return next
+    })
+    setSetupNotice(null)
+  }
+
+  function toggleSetupLesson(lesson) {
+    if (completedSetupLessons.has(lesson.id)) {
+      setCompletedSetupLessons((current) => {
+        const next = new Set(current)
+        next.delete(lesson.id)
+        return next
+      })
+      setSetupNotice({ type: 'info', message: 'Lesson marked incomplete. You can review and complete it again.' })
+      return
+    }
+    const error = validateGtmSetupLesson(lesson, setupValues, containerId)
+    if (error) {
+      setSetupNotice({ type: 'error', message: error })
+      return
+    }
+    setCompletedSetupLessons((current) => new Set([...current, lesson.id]))
+    setSetupNotice({ type: 'success', message: `Lesson ${activeLessonIndex + 1} complete. Continue when you are ready.` })
   }
 
   function createFile(event) {
@@ -247,6 +293,7 @@ function TagWorkspacePage() {
     }
     setFiles((current) => ({ ...current, 'container.json': `${JSON.stringify(safeSnapshot, null, 2)}\n` }))
     setSelectedFile('container.json')
+    setGuideTab('context')
     setCursor({ line: 1, column: 1 })
     setNotice(`${snapshot.container.publicId} audit imported: ${comparison.matchedEventNames.length} local event${comparison.matchedEventNames.length === 1 ? '' : 's'} matched. No OAuth token or raw tag code was copied.`)
   }
@@ -261,12 +308,16 @@ function TagWorkspacePage() {
       <div className="workspace-security-strip"><strong>Network-disabled runner</strong><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div>
 
       <div className="workspace-grid">
-        <aside className="workspace-files" aria-label="Virtual project files">
-          <div className="workspace-panel-title"><span>Workspace <small>{Object.keys(files).length}/{WORKSPACE_MAX_FILES}</small></span><button type="button" aria-label="Create new file" onClick={() => setIsCreatingFile((open) => !open)}>＋</button></div>
-          {isCreatingFile && <form className="workspace-new-file" onSubmit={createFile}><label htmlFor="workspace-file-name">New file path</label><input id="workspace-file-name" value={newFileName} onChange={(event) => setNewFileName(event.target.value)} placeholder="events/signup.json" autoFocus /><div><button type="submit">Create</button><button type="button" onClick={() => { setIsCreatingFile(false); setNewFileName('') }}>Cancel</button></div></form>}
-          <div className="workspace-file-list">{groupedFiles.map((group) => <section key={group.folder}><h2><span aria-hidden="true">⌄</span>{group.folder}</h2>{group.files.map((file) => <button className={file.name === selectedFile ? 'is-active' : ''} type="button" onClick={() => selectFile(file.name)} key={file.name}><span aria-hidden="true">{file.name.endsWith('.json') ? '{ }' : 'M↓'}</span><span>{file.label}</span>{modifiedFiles.has(file.name) && <i aria-label="Modified">●</i>}</button>)}</section>)}</div>
-          <label className="workspace-import">Import JSON or Markdown<input type="file" accept=".json,.md,application/json,text/markdown" onChange={importFile} /></label>
-          <p className="workspace-memory-note">Files exist only in this window. Download them before closing.</p>
+        <aside className="workspace-files workspace-course-sidebar" aria-label="GTM and GA4 setup course">
+          <GtmSetupChecklist activeLessonId={activeLessonId} completedLessons={completedSetupLessons} onSelectLesson={selectSetupLesson} />
+          <details className="workspace-project-files">
+            <summary><span>Project files</span><small>{Object.keys(files).length}/{WORKSPACE_MAX_FILES}</small></summary>
+            <div className="workspace-panel-title"><span>Virtual files</span><button type="button" aria-label="Create new file" onClick={() => setIsCreatingFile((open) => !open)}>＋</button></div>
+            {isCreatingFile && <form className="workspace-new-file" onSubmit={createFile}><label htmlFor="workspace-file-name">New file path</label><input id="workspace-file-name" value={newFileName} onChange={(event) => setNewFileName(event.target.value)} placeholder="events/signup.json" autoFocus /><div><button type="submit">Create</button><button type="button" onClick={() => { setIsCreatingFile(false); setNewFileName('') }}>Cancel</button></div></form>}
+            <div className="workspace-file-list">{groupedFiles.map((group) => <section key={group.folder}><h2><span aria-hidden="true">⌄</span>{group.folder}</h2>{group.files.map((file) => <button className={file.name === selectedFile ? 'is-active' : ''} type="button" onClick={() => selectFile(file.name)} key={file.name}><span aria-hidden="true">{file.name.endsWith('.json') ? '{ }' : 'M↓'}</span><span>{file.label}</span>{modifiedFiles.has(file.name) && <i aria-label="Modified">●</i>}</button>)}</section>)}</div>
+            <label className="workspace-import">Import JSON or Markdown<input type="file" accept=".json,.md,application/json,text/markdown" onChange={importFile} /></label>
+            <p className="workspace-memory-note">Files exist only in this window. Download them before closing.</p>
+          </details>
         </aside>
 
         <section className="workspace-editor" aria-label="File editor">
@@ -280,10 +331,12 @@ function TagWorkspacePage() {
         </section>
 
         <aside className="workspace-guide" aria-label="Contextual GTM and GA4 guide">
-          <div className="workspace-guide-heading"><div><h2>GTM + GA4 guide</h2></div><span>{completedGuideSteps}/4</span></div>
+          <div className="workspace-guide-heading"><div><h2>GTM + GA4 guide</h2></div><span>{guideTab === 'course' ? `${completedSetupLessons.size}/10` : `${completedGuideSteps}/4`}</span></div>
           <div className="workspace-guide-tabs" role="tablist" aria-label="Guide views">
-            {[['context','This file'],['flow','Flow'],['examples','Examples'],['reference','Terms']].map(([id, label]) => <button type="button" role="tab" aria-selected={guideTab === id} className={guideTab === id ? 'is-active' : ''} onClick={() => setGuideTab(id)} key={id}>{label}</button>)}
+            {[['course','Setup'],['context','File'],['flow','Flow'],['examples','Examples'],['reference','Terms']].map(([id, label]) => <button type="button" role="tab" aria-selected={guideTab === id} className={guideTab === id ? 'is-active' : ''} onClick={() => setGuideTab(id)} key={id}>{label}</button>)}
           </div>
+
+          {guideTab === 'course' && <GtmSetupLesson lesson={activeLesson} lessonIndex={activeLessonIndex} values={setupValues} completedLessons={completedSetupLessons} notice={setupNotice} onChange={updateSetupValue} onToggleComplete={toggleSetupLesson} onSelectLesson={selectSetupLesson} />}
 
           {guideTab === 'context' && <div className="workspace-guide-panel" role="tabpanel">
             <div className="workspace-guide-progress"><div><strong>Practice progress</strong><span>{completedGuideSteps * 25}%</span></div><i><b style={{ width: `${completedGuideSteps * 25}%` }} /></i><ul>{guideProgress.map((step) => <li className={step.complete ? 'is-complete' : ''} key={step.label}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span>{step.label}</li>)}</ul></div>
@@ -320,7 +373,7 @@ function TagWorkspacePage() {
         <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
         <GtmApiPanel containerId={containerId} onImportSnapshot={importGtmSnapshot} />
       </div>
-      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); selectFile('events/page_view.json'); setOutput([]); setNotice('Workspace reset to safe starter files.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
+      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
   )
 }

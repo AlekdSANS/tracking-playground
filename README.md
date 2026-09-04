@@ -162,6 +162,8 @@ The Tag Lab page and navigation link are visible to everyone, but its workspace 
 
 The optional GTM connection now audits the selected container's default workspace through Google's read-only API. It returns bounded, sanitized tag, trigger, variable, built-in-variable, Google-tag configuration, GA4 measurement/event, and consent summaries, then compares detected GA4 event names with the local virtual event files. OAuth tokens, tag notes, parameter payloads, and custom HTML are never copied into `container.json`.
 
+The workspace opens with a ten-lesson GTM + GA4 setup course covering property creation, web streams, measurement IDs, web containers, snippet placement, the Google tag, Initialization – All Pages, Tag Assistant preview, and publishing. Each lesson includes the current Google menu path, a learner checkpoint, input validation, common mistakes, official documentation, and in-memory progress. Project files remain available from the collapsible file section.
+
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup

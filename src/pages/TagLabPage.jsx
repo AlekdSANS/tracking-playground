@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
 import { canAccessGtmLab } from '../utils/gtmAccess'
 import { isValidGtmContainerId } from '../utils/tagLab'
@@ -15,10 +15,25 @@ function TagLabPage() {
   const [containerId, setContainerId] = useState('')
   const [activeGuideId, setActiveGuideId] = useState('setup')
   const [feedback, setFeedback] = useState('')
+  const [isSetupGuideOpen, setIsSetupGuideOpen] = useState(false)
   const normalizedId = containerId.trim().toUpperCase()
   const valid = isValidGtmContainerId(normalizedId)
   const guide = guides.find((item) => item.id === activeGuideId) || guides[0]
   const hasAccess = authReady && canAccessGtmLab(user)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('gtm-setup-guide-open', isSetupGuideOpen)
+
+    function closeOnEscape(event) {
+      if (event.key === 'Escape') setIsSetupGuideOpen(false)
+    }
+
+    window.addEventListener('keydown', closeOnEscape)
+    return () => {
+      document.documentElement.classList.remove('gtm-setup-guide-open')
+      window.removeEventListener('keydown', closeOnEscape)
+    }
+  }, [isSetupGuideOpen])
 
   const accessMessage = !authReady
     ? 'Checking your account access…'
@@ -45,13 +60,19 @@ function TagLabPage() {
       </div>
       <div className="workspace-launch-layout">
         <form className="tag-lab-setup" onSubmit={openWorkspace}>
-          <div className="lab-panel-heading"><span>01</span><div><p>Connect the sandbox</p><h2>Add a practice container</h2></div></div>
+          <div className="lab-setup-title-row">
+            <div className="lab-setup-kicker"><span>01</span><p>Connect the sandbox</p></div>
+            <button className="gtm-guide-trigger" type="button" aria-expanded={isSetupGuideOpen} aria-controls="gtm-setup-guide" onClick={() => setIsSetupGuideOpen(true)}><span aria-hidden="true">?</span>How to get an ID</button>
+          </div>
+          <h2 className="lab-setup-heading">Add a practice container</h2>
           <label className="field">GTM container ID<input value={containerId} onChange={(event) => { setContainerId(event.target.value.toUpperCase()); setFeedback('') }} placeholder="GTM-ABC1234" maxLength="28" autoComplete="off" aria-invalid={Boolean(normalizedId) && !valid} /></label>
           <p className={`lab-field-help${normalizedId && !valid ? ' is-error' : ''}`}>{valid ? 'Valid ID. Your offline workspace is ready.' : normalizedId ? 'Use only an ID like GTM-ABC1234. Raw tags and scripts are rejected.' : 'Use a practice container you own. Its ID stays in this window only.'}</p>
-          <p className="form-status muted" aria-live="polite">{accessMessage}</p>
-          {!authReady || user ? null : <Link className="secondary-button" to="/login?access=verified-admin&next=%2Ftag-lab">Sign in to unlock</Link>}
-          <button className="primary-button" type="submit" disabled={!valid || !hasAccess}>Open secure workspace</button>
-          <p className="form-status muted" aria-live="polite">{feedback}</p>
+          <div className="lab-access-note"><span aria-hidden="true">i</span><p aria-live="polite">{accessMessage}</p></div>
+          <div className="tag-lab-setup-actions">
+            {!authReady || user ? null : <Link className="secondary-button" to="/login?access=verified-admin&next=%2Ftag-lab">Sign in to unlock</Link>}
+            <button className="primary-button" type="submit" disabled={!valid || !hasAccess}>Open secure workspace</button>
+          </div>
+          {feedback && <p className="lab-submit-feedback" aria-live="polite">{feedback}</p>}
         </form>
         <section className="workspace-launch-preview" aria-label="Workspace security phases">
           <h2>Prove the safe path first</h2>
@@ -62,6 +83,33 @@ function TagLabPage() {
         <div className="tag-guide-heading"><div><h2 id="tag-guide-heading">Secure workspace field guide</h2></div><p>The guide follows the same four boundaries as the workspace.</p></div>
         <div className="tag-guide-card"><div className="tag-guide-tabs" role="tablist" aria-label="Workspace guide topics">{guides.map((item, index) => <button type="button" role="tab" aria-selected={item.id === activeGuideId} className={item.id === activeGuideId ? 'is-active' : ''} onClick={() => setActiveGuideId(item.id)} key={item.id}><span>{String(index + 1).padStart(2,'0')}</span>{item.label}</button>)}</div><article className="tag-guide-content" role="tabpanel"><h3>{guide.title}</h3><p>{guide.text}</p></article></div>
       </section>
+      {isSetupGuideOpen && <button className="gtm-guide-backdrop" type="button" aria-label="Close GTM setup guide" onClick={() => setIsSetupGuideOpen(false)} />}
+      <aside id="gtm-setup-guide" className={`gtm-setup-guide${isSetupGuideOpen ? ' is-open' : ''}`} aria-label="How to create a Google Tag Manager container" aria-hidden={!isSetupGuideOpen} inert={!isSetupGuideOpen}>
+        <header className="gtm-guide-header">
+          <div><span>GTM setup guide</span><h2>Create a GTM container</h2></div>
+          <button type="button" aria-label="Close GTM setup guide" onClick={() => setIsSetupGuideOpen(false)}><svg viewBox="0 0 20 20" aria-hidden="true"><path d="M5 5l10 10M15 5L5 15" /></svg></button>
+        </header>
+        <div className="gtm-guide-scroll">
+          <section className="gtm-guide-explainer">
+            <span aria-hidden="true">◎</span>
+            <div><h3>What is a GTM container?</h3><p>It is a workspace that holds your tags, triggers, and variables for one website or app. The container itself is not Google Analytics; it controls when measurement and marketing tags are allowed to run.</p></div>
+          </section>
+          <div className="gtm-guide-callout"><strong>For this playground</strong><p>Create a separate practice container and leave it unpublished. In the offline phase, the ID only names your local project—no Google container is loaded.</p></div>
+          <section className="gtm-guide-steps" aria-labelledby="gtm-create-steps">
+            <div className="gtm-guide-section-heading"><span>Step by step</span><h3 id="gtm-create-steps">Create a Web container</h3></div>
+            <ol>
+              <li><span>1</span><div><h4>Open Google Tag Manager</h4><p>Go to <a href="https://tagmanager.google.com/" target="_blank" rel="noreferrer">tagmanager.google.com</a> and sign in with your Google account.</p><div className="gtm-guide-image-slot"><b>Image placeholder</b><small>Accounts screen</small></div></div></li>
+              <li><span>2</span><div><h4>Create an account</h4><p>Open the <strong>Accounts</strong> tab, choose <strong>Create account</strong>, then enter an account name and select your country.</p></div></li>
+              <li><span>3</span><div><h4>Set up the container</h4><p>Use a recognizable practice name, such as <strong>Tracking Playground</strong>. Under Target platform, select <strong>Web</strong>.</p><div className="gtm-guide-image-slot"><b>Image placeholder</b><small>Account and container setup</small></div></div></li>
+              <li><span>4</span><div><h4>Create and accept the terms</h4><p>Select <strong>Create</strong>, review the terms, choose your language, and accept them. Google will then show installation snippets; you can close that window for this offline exercise.</p></div></li>
+              <li><span>5</span><div><h4>Copy the container ID</h4><p>Find the public ID near the top of the workspace. It starts with <strong>GTM-</strong>, for example <strong>GTM-ABC1234</strong>.</p><div className="gtm-guide-image-slot"><b>Image placeholder</b><small>Container ID location</small></div></div></li>
+              <li><span>6</span><div><h4>Return and paste it here</h4><p>Close this guide, paste the ID into the field, and open the secure workspace. Do not paste either installation script.</p></div></li>
+            </ol>
+          </section>
+          <div className="gtm-guide-next"><strong>Later, on a real website</strong><p>A developer installs the container snippets, then you add and preview tags before publishing a version. This lab deliberately keeps that live step off.</p></div>
+          <a className="gtm-guide-official-link" href="https://support.google.com/tagmanager/answer/14842164?hl=en" target="_blank" rel="noreferrer">Read Google’s official setup guide <span aria-hidden="true">↗</span></a>
+        </div>
+      </aside>
     </section>
   )
 }

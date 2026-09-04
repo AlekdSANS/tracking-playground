@@ -554,6 +554,24 @@ test('shows the isolated GTM and GA4 lab guide', async () => {
   expect(screen.getByText(/explicit restricted 10-minute session/i)).toBeInTheDocument()
 })
 
+test('opens and closes the GTM container setup guide', async () => {
+  const user = userEvent.setup()
+  renderAdminApp(['/tag-lab'])
+
+  const guideButton = await screen.findByRole('button', { name: /how to get an id/i })
+  expect(guideButton).toHaveAttribute('aria-expanded', 'false')
+
+  await user.click(guideButton)
+  expect(guideButton).toHaveAttribute('aria-expanded', 'true')
+  expect(screen.getByRole('complementary', { name: /how to create a google tag manager container/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /create a web container/i })).toBeInTheDocument()
+  expect(document.documentElement).toHaveClass('gtm-setup-guide-open')
+
+  await user.keyboard('{Escape}')
+  expect(guideButton).toHaveAttribute('aria-expanded', 'false')
+  expect(document.documentElement).not.toHaveClass('gtm-setup-guide-open')
+})
+
 test('opens the offline workspace only for a valid GTM container ID', async () => {
   const user = userEvent.setup()
   const openSpy = vi.spyOn(window, 'open').mockImplementation(() => null)
@@ -617,7 +635,7 @@ test('renders the workspace without the site shell or tracking console', async (
   renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
   expect(await screen.findByRole('heading', { name: /datalayer workspace/i })).toBeInTheDocument()
-  expect(screen.getByRole('complementary', { name: /virtual project files/i })).toBeInTheDocument()
+  expect(screen.getByRole('complementary', { name: /gtm and ga4 setup course/i })).toBeInTheDocument()
   expect(screen.getByText(/^live gtm opt-in$/i)).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
@@ -727,6 +745,8 @@ test('shows the GTM to GA4 flow and adds safe guide examples', async () => {
   renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
 
   expect(await screen.findByRole('complementary', { name: /contextual gtm and ga4 guide/i })).toBeInTheDocument()
+  expect(screen.getByRole('heading', { name: /create a ga4 property/i })).toBeInTheDocument()
+  await user.click(screen.getByRole('tab', { name: /^file$/i }))
   expect(screen.getByRole('heading', { name: /build page_view/i })).toBeInTheDocument()
 
   await user.click(screen.getByRole('tab', { name: /^flow$/i }))
@@ -738,6 +758,32 @@ test('shows the GTM to GA4 flow and adds safe guide examples', async () => {
 
   expect(screen.getByRole('textbox', { name: /edit events\/example-sign_up.json/i })).toBeInTheDocument()
   expect(screen.getByRole('heading', { name: /build sign_up/i })).toBeInTheDocument()
+})
+
+test('guides a beginner through validated GTM and GA4 setup lessons', async () => {
+  const user = userEvent.setup()
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
+
+  expect(await screen.findByRole('heading', { name: /create a ga4 property/i })).toBeInTheDocument()
+  expect(screen.getByText(/admin/i, { selector: '.setup-menu-path li' })).toBeInTheDocument()
+  expect(screen.getByText(/the property is the home/i)).toBeInTheDocument()
+  expect(screen.getByText(/0\/10 complete/i)).toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /^mark complete$/i }))
+  expect(screen.getByRole('status')).toHaveTextContent(/enter your ga4 property name/i)
+  await user.type(screen.getByLabelText(/your ga4 property name/i), 'Tracking Playground')
+  await user.click(screen.getByRole('button', { name: /^mark complete$/i }))
+  expect(screen.getByText(/1\/10 complete/i)).toBeInTheDocument()
+
+  await user.click(screen.getAllByRole('button', { name: /lesson 3: copy the measurement id/i })[0])
+  const measurementInput = screen.getByLabelText(/your ga4 measurement id/i)
+  await user.type(measurementInput, 'GTM-WRONG99')
+  await user.click(screen.getByRole('button', { name: /^mark complete$/i }))
+  expect(screen.getByRole('status')).toHaveTextContent(/measurement ID begins with G-/i)
+  await user.clear(measurementInput)
+  await user.type(measurementInput, 'G-ABC1234567')
+  await user.click(screen.getByRole('button', { name: /^mark complete$/i }))
+  expect(screen.getByRole('status')).toHaveTextContent(/lesson 3 complete/i)
 })
 
 test('defines a network-disabled single-use runner contract', () => {
