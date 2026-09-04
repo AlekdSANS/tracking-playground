@@ -69,7 +69,7 @@ describe('GTM OAuth boundary', () => {
         consentSettings: { consentStatus: 'needed', consentType: { type: 'list', list: [{ type: 'template', value: 'analytics_storage' }] } },
       }] },
       triggers: { trigger: [{ triggerId: '3', name: 'Purchase event', type: 'customEvent', customEventFilter: [{ parameter: [{ key: 'arg2', value: 'purchase' }] }] }] },
-      variables: { variable: [{ variableId: '5', name: 'GA4 ID', type: 'c', parameter: [{ key: 'value', value: 'G-SAFE12345' }], notes: 'another private value' }] },
+      variables: { variable: [{ variableId: '5', name: 'DLV - form_name', type: 'v', parameter: [{ key: 'name', value: 'form_name' }, { key: 'value', value: 'G-SAFE12345' }], notes: 'another private value' }] },
       builtInVariables: { builtInVariable: [{ name: 'Event', type: 'event' }] },
       gtagConfigs: { gtagConfig: [{ gtagConfigId: 'G-OTHER1234', type: 'googleTag', parameter: [{ key: 'secret', value: 'must-not-leak' }] }] },
     }
@@ -101,6 +101,7 @@ describe('GTM OAuth boundary', () => {
     }))
     expect(snapshot.audit.tags[0]).toEqual(expect.objectContaining({ tagId: '7', firingTriggerIds: ['3'] }))
     expect(snapshot.audit.triggers[0].eventNames).toEqual(['purchase'])
+    expect(snapshot.audit.variables[0]).toEqual(expect.objectContaining({ name: 'DLV - form_name', dataLayerNames: ['form_name'] }))
     expect(JSON.stringify(snapshot)).not.toMatch(/not returned|server-token|private-tag-code|private notes|must-not-leak|fingerprint/)
   })
 })

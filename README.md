@@ -170,6 +170,8 @@ The GTM walkthrough turns the generated event into a dynamic ten-step configurat
 
 The offline Test Simulator adds a small fake website for button clicks, successful form submissions, and completed purchases. Each action exposes the resulting `dataLayer.push()`, exact-match Custom Event trigger, fired GA4 Event tag, and simulated GA4 payload without making a network request. A separate seven-step checklist covers deployed-site testing in Tag Assistant and GA4 DebugView, and keeps the publish step locked until the preceding verification checks are complete.
 
+The read-only GTM connection includes a lesson-aware Check My Setup report. It verifies the container and Google tag, compares local events and parameters with sanitized GTM tags, triggers, Data Layer Variables, firing-trigger links, and consent settings, and reports configuration drift in both directions. The report keeps API evidence separate from the manual Tag Assistant browser check and GA4 DebugView delivery check because saved GTM configuration alone cannot prove that an event fired or reached Analytics.
+
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup

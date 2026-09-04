@@ -339,13 +339,13 @@ describe('read-only GTM API surface', () => {
       workspaces: [{ name: 'Default Workspace', workspaceId: '1', path: 'accounts/10/containers/20/workspaces/1' }],
       audit: {
         workspace: { name: 'Default Workspace', workspaceId: '1', path: 'accounts/10/containers/20/workspaces/1' },
-        counts: { tags: 2, triggers: 1, variables: 1, builtInVariables: 1, googleTagConfigs: 1 },
-        tags: [{ tagId: '7', name: 'GA4 page view', type: 'gaawe', paused: false, firingTriggerIds: ['3'], blockingTriggerIds: [], consent: { status: 'needed', types: ['analytics_storage'] }, ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['page_view'], measurementReferences: [] } }],
-        triggers: [{ triggerId: '3', name: 'Page view', type: 'pageview', eventNames: [] }],
-        variables: [],
+        counts: { tags: 2, triggers: 2, variables: 1, builtInVariables: 1, googleTagConfigs: 1 },
+        tags: [{ tagId: '7', name: 'GA4 page view', type: 'gaawe', paused: false, firingTriggerIds: ['3'], blockingTriggerIds: [], consent: { status: 'needed', types: ['analytics_storage'] }, ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['page_view'], measurementReferences: [] } }, { tagId: '8', name: 'GA4 Event - generate_lead', type: 'gaawe', paused: false, firingTriggerIds: ['4'], blockingTriggerIds: [], consent: { status: '', types: [] }, ga4: { measurementIds: [], eventNames: ['generate_lead'], measurementReferences: ['{{GA4 ID}}'] } }],
+        triggers: [{ triggerId: '3', name: 'Page view', type: 'pageview', eventNames: [] }, { triggerId: '4', name: 'CE - generate_lead', type: 'customEvent', eventNames: ['generate_lead'] }],
+        variables: [{ variableId: '5', name: 'DLV - lead_source', type: 'v', measurementIds: [], dataLayerNames: ['lead_source'] }],
         builtInVariables: [{ name: 'Event', type: 'event' }],
         googleTagConfigs: [{ gtagConfigId: 'G-SAFE12345', type: 'googleTag', measurementIds: ['G-SAFE12345'] }],
-        ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['page_view', 'purchase'], measurementReferences: [] },
+        ga4: { measurementIds: ['G-SAFE12345'], eventNames: ['generate_lead', 'page_view', 'purchase'], measurementReferences: [] },
         consent: { types: ['analytics_storage'], tagsRequiringConsent: ['GA4 page view'] },
         truncatedSections: [],
         unavailableSections: [],
@@ -361,8 +361,15 @@ describe('read-only GTM API surface', () => {
 
     expect(await screen.findByText(/GTM-SAFE123 was audited/i)).toBeInTheDocument()
     expect(screen.getByText(/^read-only GTM API$/i)).toBeInTheDocument()
-    expect(screen.getByText('G-SAFE12345')).toBeInTheDocument()
-    expect(screen.getByText('page_view, purchase')).toBeInTheDocument()
+    expect(screen.getAllByText(/G-SAFE12345/).length).toBeGreaterThan(0)
+    expect(screen.getByText('generate_lead, page_view, purchase')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /configuration verified through api/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /browser behavior verified through tag assistant/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /analytics delivery verified through ga4 debugview/i })).toBeInTheDocument()
+    expect(screen.getByText(/trigger is connected to the generate_lead tag/i)).toBeInTheDocument()
+    expect(screen.getByText(/purchase exists in gtm but not in the local workspace/i)).toBeInTheDocument()
+    expect(screen.getByText(/manual check required: tag assistant firing/i)).toBeInTheDocument()
+    expect(screen.getByText(/manual check required: ga4 debugview reception/i)).toBeInTheDocument()
     expect(document.body.textContent).not.toMatch(/access[_ -]?token|server-token/i)
     await user.click(screen.getByRole('button', { name: /import audit and local comparison/i }))
 

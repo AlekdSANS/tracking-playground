@@ -309,6 +309,15 @@ function extractMeasurementReferences(parameters) {
   )
 }
 
+function extractDataLayerNames(variable) {
+  if (String(variable?.type || '').toLowerCase() !== 'v') return []
+  return uniqueSorted(
+    extractKeyedParameterStrings(variable.parameter, new Set(['name']))
+      .map((value) => sanitizeLabel(value, 40))
+      .filter((value) => GA4_EVENT_NAME.test(value)),
+  )
+}
+
 function extractConsentTypes(consentSettings) {
   const values = []
   collectParameterStrings(consentSettings?.consentType, values)
@@ -357,6 +366,7 @@ function sanitizeVariable(variable) {
     name: sanitizeLabel(variable.name),
     type: sanitizeIdentifier(variable.type),
     measurementIds: extractMeasurementIds(variable.parameter),
+    dataLayerNames: extractDataLayerNames(variable),
   }
 }
 

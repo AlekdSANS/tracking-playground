@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
+import GtmSetupAuditReport from './GtmSetupAuditReport'
 
-function GtmApiPanel({ containerId, onImportSnapshot }) {
+function GtmApiPanel({ containerId, files, measurementId, onImportSnapshot }) {
   const [status, setStatus] = useState({ phase: 'checking', configured: true, expiresAt: null })
   const [snapshot, setSnapshot] = useState(null)
   const [message, setMessage] = useState('Checking the server-side GTM API connection…')
@@ -82,7 +83,7 @@ function GtmApiPanel({ containerId, onImportSnapshot }) {
         <div className="gtm-api-guardrails"><span>Read-only scope</span><span>HTTP-only token</span><span>10-minute expiry</span><span>No publish access</span></div>
         {status.phase === 'disconnected' && <a className="gtm-api-connect" href={`/api/gtm-oauth-start?container=${encodeURIComponent(containerId)}`}>Connect Google Tag Manager</a>}
         {status.phase === 'unavailable' && <div className="gtm-api-setup"><strong>OAuth setup required</strong><p>Configure the four GTM OAuth environment values, then run through the API-enabled development server.</p></div>}
-        {['connected', 'loading', 'error'].includes(status.phase) && <div className="gtm-api-actions"><button type="button" onClick={loadSnapshot} disabled={status.phase === 'loading'}>Refresh snapshot</button><button type="button" onClick={disconnect}>Disconnect API</button></div>}
+        {['connected', 'loading', 'error'].includes(status.phase) && <div className="gtm-api-actions"><button type="button" onClick={loadSnapshot} disabled={status.phase === 'loading'}>{snapshot ? 'Check my setup again' : 'Check my setup'}</button><button type="button" onClick={disconnect}>Disconnect API</button></div>}
       </div>
 
       <div className="gtm-api-result">
@@ -105,6 +106,7 @@ function GtmApiPanel({ containerId, onImportSnapshot }) {
           {expiresLabel && <small>Authorization expires at {expiresLabel}. Reconnect to continue.</small>}
         </> : <div className="gtm-api-empty"><span aria-hidden="true">↯</span><strong>No account data in the browser</strong><p>The backend returns only sanitized GTM structure and audit fields. OAuth credentials and raw tag code never enter this workspace.</p></div>}
       </div>
+      {snapshot && <GtmSetupAuditReport files={files} snapshot={snapshot} containerId={containerId} measurementId={measurementId} />}
     </section>
   )
 }
