@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { trackAuthError, trackAuthSuccess, trackLogout } from '../utils/analytics'
+import { getLocalDevUser } from '../utils/gtmAccess'
+
+const localDevUser = getLocalDevUser()
 
 async function requestAuth(path, body) {
   const response = await fetch(path, {
@@ -57,13 +60,15 @@ function getAuthErrorType(message) {
 function AuthPage() {
   const navigate = useNavigate()
   const [searchParams] = useSearchParams()
+  const showLocalWorkspaceShortcut = Boolean(localDevUser)
+    && searchParams.get('access') === 'verified-admin'
   const verificationResult = searchParams.get('verification')
   const requestedNext = searchParams.get('next')
   const safeNext = requestedNext?.startsWith('/') && !requestedNext.startsWith('//')
     ? requestedNext
     : ''
   const [mode, setMode] = useState('login')
-  const [user, setUser] = useState(null)
+  const [user, setUser] = useState(localDevUser)
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [login, setLogin] = useState('')
@@ -91,6 +96,8 @@ function AuthPage() {
   const [canResend, setCanResend] = useState(verificationResult === 'invalid')
 
   useEffect(() => {
+    if (localDevUser) return undefined
+
     let active = true
 
     fetch('/api/me')
@@ -200,16 +207,18 @@ function AuthPage() {
             </p>
             <p className="muted">{user.email}</p>
             <p className="muted">
-              {user.admin_status === 1 ? 'Admin account' : 'Basic account'}
+              {localDevUser ? 'Local development admin' : user.admin_status === 1 ? 'Admin account' : 'Basic account'}
             </p>
-            <button
-              type="button"
-              className="secondary-button"
-              onClick={handleLogout}
-              disabled={loading}
-            >
-              Log out
-            </button>
+            {!localDevUser && (
+              <button
+                type="button"
+                className="secondary-button"
+                onClick={handleLogout}
+                disabled={loading}
+              >
+                Log out
+              </button>
+            )}
           </div>
         ) : (
           <>
@@ -314,6 +323,24 @@ function AuthPage() {
         <p className="form-status muted" aria-live="polite">
           {status}
         </p>
+
+        {showLocalWorkspaceShortcut && (
+          <div className="local-lab-shortcut">
+            <div>
+              <strong>Local development shortcut</strong>
+              <span>Skip account setup and open this GTM + GA4 workspace locally.</span>
+            </div>
+            <button
+              type="button"
+              className="secondary-button"
+              onClick={() => {
+                window.location.assign(safeNext || '/tag-workspace#container=GTM-TEST99')
+              }}
+            >
+              Open local workspace →
+            </button>
+          </div>
+        )}
       </div>
     </section>
   )

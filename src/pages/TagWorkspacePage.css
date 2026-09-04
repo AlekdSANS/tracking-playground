@@ -109,6 +109,14 @@
   grid-template-columns: 292px minmax(0, 1fr);
   align-items: start;
   min-height: calc(100vh - 184px);
+  background: linear-gradient(
+    to right,
+    #121318 0,
+    #121318 291px,
+    var(--ws-border) 291px,
+    var(--ws-border) 292px,
+    transparent 292px
+  );
 }
 
 .tag-workspace-page .workspace-files {
@@ -438,7 +446,7 @@
 }
 
 @media (max-width: 920px) {
-  .tag-workspace-page .workspace-grid { grid-template-columns: 1fr; }
+  .tag-workspace-page .workspace-grid { grid-template-columns: 1fr; background: transparent; }
   .tag-workspace-page .workspace-files { position: static; width: 100%; height: auto; border-right: 0; border-bottom: 1px solid var(--ws-border); }
   .tag-workspace-page .workspace-project-files { display: none; }
   .tag-workspace-page .setup-course-sections { grid-template-columns: repeat(3, minmax(0, 1fr)); }

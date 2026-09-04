@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Link, useOutletContext } from 'react-router-dom'
-import { canAccessGtmLab } from '../utils/gtmAccess'
+import { canAccessGtmLab, getLocalDevUser } from '../utils/gtmAccess'
 import { isValidGtmContainerId } from '../utils/tagLab'
+
+const localDevUser = getLocalDevUser()
 
 const guides = [
   { id: 'setup', label: 'Set up', title: 'Start with a disposable practice project', text: 'Use a GTM container created only for learning. Enter its public ID to label the local workspace; this phase does not contact Google.' },
@@ -19,6 +21,7 @@ function TagLabPage() {
   const normalizedId = containerId.trim().toUpperCase()
   const valid = isValidGtmContainerId(normalizedId)
   const guide = guides.find((item) => item.id === activeGuideId) || guides[0]
+  const isLocalDevelopment = Boolean(localDevUser)
   const hasAccess = authReady && canAccessGtmLab(user)
 
   useEffect(() => {
@@ -35,7 +38,9 @@ function TagLabPage() {
     }
   }, [isSetupGuideOpen])
 
-  const accessMessage = !authReady
+  const accessMessage = isLocalDevelopment
+    ? 'Local mode is ready. No database or sign-in is required.'
+    : !authReady
     ? 'Checking your account access…'
     : !user
       ? 'Sign in with the verified administrator account to launch the workspace.'
@@ -48,6 +53,10 @@ function TagLabPage() {
   function openWorkspace(event) {
     event.preventDefault()
     if (!valid) return setFeedback('Enter a container ID like GTM-ABC1234. Raw tags and scripts are rejected.')
+    if (isLocalDevelopment) {
+      window.location.assign(`/tag-workspace#container=${encodeURIComponent(normalizedId)}`)
+      return
+    }
     window.open(`/tag-workspace#container=${encodeURIComponent(normalizedId)}`, 'tag-workspace', 'popup,noopener,noreferrer')
     setFeedback('Secure offline workspace requested. Live GTM remains off.')
   }
@@ -69,8 +78,8 @@ function TagLabPage() {
           <p className={`lab-field-help${normalizedId && !valid ? ' is-error' : ''}`}>{valid ? 'Valid ID. Your offline workspace is ready.' : normalizedId ? 'Use only an ID like GTM-ABC1234. Raw tags and scripts are rejected.' : 'Use a practice container you own. Its ID stays in this window only.'}</p>
           <div className="lab-access-note"><span aria-hidden="true">i</span><p aria-live="polite">{accessMessage}</p></div>
           <div className="tag-lab-setup-actions">
-            {!authReady || user ? null : <Link className="secondary-button" to="/login?access=verified-admin&next=%2Ftag-lab">Sign in to unlock</Link>}
-            <button className="primary-button" type="submit" disabled={!valid || !hasAccess}>Open secure workspace</button>
+            {isLocalDevelopment || !authReady || user ? null : <Link className="secondary-button" to="/login?access=verified-admin&next=%2Ftag-lab">Sign in to unlock</Link>}
+            <button className="primary-button" type="submit" disabled={!valid || !hasAccess}>{isLocalDevelopment ? 'Open local workspace' : 'Open secure workspace'}</button>
           </div>
           {feedback && <p className="lab-submit-feedback" aria-live="polite">{feedback}</p>}
         </form>

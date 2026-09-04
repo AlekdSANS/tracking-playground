@@ -1,6 +1,8 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation, useOutletContext } from 'react-router-dom'
-import { canAccessGtmLab } from '../utils/gtmAccess'
+import { canAccessGtmLab, getLocalDevUser } from '../utils/gtmAccess'
+
+const localDevUser = getLocalDevUser()
 
 function getLoginRedirect(location) {
   const next = `${location.pathname}${location.search}${location.hash}`
@@ -27,9 +29,15 @@ export function RequireVerifiedAdmin() {
 }
 
 export function StandaloneRequireVerifiedAdmin() {
-  const [auth, setAuth] = useState({ ready: false, user: null })
+  const [auth, setAuth] = useState(() => (
+    localDevUser
+      ? { ready: true, user: localDevUser }
+      : { ready: false, user: null }
+  ))
 
   useEffect(() => {
+    if (localDevUser) return undefined
+
     let active = true
 
     fetch('/api/me', { credentials: 'same-origin' })

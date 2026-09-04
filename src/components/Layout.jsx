@@ -3,6 +3,7 @@ import { NavLink, Outlet } from 'react-router-dom'
 import AnalyticsDebugPanel from './AnalyticsDebugPanel'
 import ConsentBanner from './ConsentBanner'
 import Waves from './Waves'
+import { getLocalDevUser } from '../utils/gtmAccess'
 
 const navItems = [
   { to: '/', label: 'Home' },
@@ -13,10 +14,12 @@ const navItems = [
   { to: '/privacy', label: 'Privacy' },
 ]
 
+const localDevUser = getLocalDevUser()
+
 function Layout() {
   const [showConsentSettings, setShowConsentSettings] = useState(false)
-  const [user, setUser] = useState(null)
-  const [authReady, setAuthReady] = useState(false)
+  const [user, setUser] = useState(localDevUser)
+  const [authReady, setAuthReady] = useState(Boolean(localDevUser))
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [theme, setTheme] = useState(() => (
     document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'
@@ -36,6 +39,8 @@ function Layout() {
   }, [theme])
 
   useEffect(() => {
+    if (localDevUser) return undefined
+
     let active = true
 
     fetch('/api/me')

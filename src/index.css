@@ -1925,6 +1925,46 @@ p {
 	margin: 0;
 }
 
+.local-lab-shortcut {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) auto;
+	gap: 18px;
+	align-items: center;
+	padding-top: 18px;
+	border-top: 1px solid var(--border);
+}
+
+.local-lab-shortcut strong,
+.local-lab-shortcut span {
+	display: block;
+}
+
+.local-lab-shortcut strong {
+	font-size: 14px;
+}
+
+.local-lab-shortcut span {
+	margin-top: 3px;
+	color: var(--muted);
+	font-size: 13px;
+	line-height: 1.45;
+}
+
+.local-lab-shortcut button {
+	min-height: 42px;
+	white-space: nowrap;
+}
+
+@media (max-width: 560px) {
+	.local-lab-shortcut {
+		grid-template-columns: 1fr;
+	}
+
+	.local-lab-shortcut button {
+		width: 100%;
+	}
+}
+
 .contact-actions {
 	margin-top: 18px;
 }
