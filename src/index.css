@@ -3443,7 +3443,8 @@ pre {
 .workspace-header > div:last-child { display: flex; align-items: center; gap: 12px; }
 .workspace-session-state { display: inline-flex; align-items: center; gap: 7px; color: #b8bbc5; font: 700 11px ui-monospace, monospace; }
 .workspace-session-state i { width: 7px; height: 7px; border-radius: 50%; background: #b7ff65; box-shadow: 0 0 0 4px rgba(183, 255, 101, .08); }
-.workspace-header a, .tag-workspace-locked a { color: #f3f4f8; text-decoration: none; border: 1px solid #444753; border-radius: 10px; padding: 10px 14px; font-weight: 700; }
+.workspace-header a, .workspace-exit-button, .tag-workspace-locked a { color: #f3f4f8; text-decoration: none; border: 1px solid #444753; border-radius: 10px; padding: 10px 14px; background: transparent; font: inherit; font-weight: 700; }
+.workspace-exit-button:hover { border-color: #777b88; background: #22242b; }
 .workspace-lock-badge { color: #16180f; background: #b7ff65; border-radius: 999px; padding: 7px 11px; font-size: 11px; font-weight: 900; text-transform: uppercase; }
 .workspace-security-strip { display: flex; gap: 22px; flex-wrap: wrap; padding: 10px 28px; color: #aaadb8; background: #181a20; border-bottom: 1px solid #30323a; font-size: 12px; }
 .workspace-security-strip strong { color: #b7ff65; }

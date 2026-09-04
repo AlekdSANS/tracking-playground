@@ -8,6 +8,7 @@ import ConsentBanner from '../components/ConsentBanner'
 import { saveConsent } from '../utils/consent'
 import { isValidGtmContainerId } from '../utils/tagLab'
 import {
+  exitWorkspaceWindow,
   formatWorkspaceJson,
   groupWorkspaceFiles,
   readWorkspaceContainerId,
@@ -639,6 +640,31 @@ test('renders the workspace without the site shell or tracking console', async (
   expect(screen.getByText(/^live gtm opt-in$/i)).toBeInTheDocument()
   expect(screen.queryByRole('navigation', { name: /main navigation/i })).not.toBeInTheDocument()
   expect(screen.queryByRole('complementary', { name: /analytics debug console/i })).not.toBeInTheDocument()
+})
+
+test('closes the script-opened workspace from its exit control', async () => {
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
+  const exitButton = await screen.findByRole('button', { name: /exit workspace/i })
+  const closeSpy = vi.spyOn(window, 'close').mockImplementation(() => {})
+  vi.spyOn(window, 'setTimeout').mockImplementation(() => 0)
+
+  fireEvent.click(exitButton)
+
+  expect(closeSpy).toHaveBeenCalledOnce()
+})
+
+test('returns to Tag Lab when the browser refuses to close a manually opened tab', () => {
+  const browserWindow = {
+    closed: false,
+    close: vi.fn(),
+    location: { assign: vi.fn() },
+    setTimeout: vi.fn((callback) => callback()),
+  }
+
+  exitWorkspaceWindow(browserWindow)
+
+  expect(browserWindow.close).toHaveBeenCalledOnce()
+  expect(browserWindow.location.assign).toHaveBeenCalledWith('/tag-lab')
 })
 
 test('groups virtual files and formats JSON safely', () => {

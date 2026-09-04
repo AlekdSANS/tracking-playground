@@ -24,6 +24,15 @@ export function readWorkspaceContainerId(hash = '') {
   return isValidGtmContainerId(value) ? value : ''
 }
 
+export function exitWorkspaceWindow(browserWindow, fallbackPath = '/tag-lab') {
+  if (!browserWindow || typeof browserWindow.close !== 'function') return
+
+  browserWindow.close()
+  browserWindow.setTimeout(() => {
+    if (!browserWindow.closed) browserWindow.location.assign(fallbackPath)
+  }, 100)
+}
+
 export function isValidWorkspaceFileName(fileName) {
   return SAFE_FILE_NAME.test(fileName)
 }

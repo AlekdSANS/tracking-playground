@@ -10,6 +10,7 @@ import {
   WORKSPACE_MAX_FILES,
   createStarterWorkspace,
   createWorkspaceFileContent,
+  exitWorkspaceWindow,
   formatWorkspaceJson,
   groupWorkspaceFiles,
   isValidWorkspaceFileName,
@@ -125,6 +126,12 @@ function TagWorkspacePage() {
     channel.port1.start()
     runnerPortRef.current = channel.port1
     iframeRef.current.contentWindow.postMessage({ type: 'runner:connect', runId: activeRun.id }, '*', [channel.port2])
+  }
+
+  function exitWorkspace() {
+    runnerPortRef.current?.close()
+    runnerPortRef.current = null
+    exitWorkspaceWindow(window)
   }
 
   function selectFile(name) {
@@ -355,7 +362,7 @@ function TagWorkspacePage() {
 
   return (
     <main className="tag-workspace-page">
-      <header className="workspace-header"><div><p>Offline-first practice · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM opt-in</span><a href="/tag-lab">Exit workspace</a></div></header>
+      <header className="workspace-header"><div><p>Offline-first practice · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM opt-in</span><button className="workspace-exit-button" type="button" onClick={exitWorkspace}>Exit workspace</button></div></header>
       <div className="workspace-security-strip"><strong>Network-disabled runner</strong><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div>
 
       <div className="workspace-grid">
