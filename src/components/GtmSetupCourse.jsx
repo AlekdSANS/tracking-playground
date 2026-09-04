@@ -1,28 +1,42 @@
 import { GTM_SETUP_LESSONS } from '../utils/gtmSetupCourse'
 
+const COURSE_SECTIONS = [
+  { title: 'Google Analytics', lessonIds: ['ga4-property', 'web-stream', 'measurement-id'] },
+  { title: 'Google Tag Manager', lessonIds: ['gtm-container', 'install-container', 'google-tag', 'connect-measurement'] },
+  { title: 'Testing', lessonIds: ['all-pages-trigger', 'preview', 'publish'] },
+]
+
 export function GtmSetupChecklist({ activeLessonId, completedLessons, onSelectLesson }) {
   const completedCount = completedLessons.size
   const percentage = Math.round((completedCount / GTM_SETUP_LESSONS.length) * 100)
 
   return <div className="setup-course-checklist">
     <div className="setup-course-header">
-      <span>Guided setup</span>
-      <strong>GTM + GA4 course</strong>
+      <span>GA4 + GTM setup</span>
+      <strong>Your learning path</strong>
       <div><span>{completedCount}/{GTM_SETUP_LESSONS.length} complete</span><b>{percentage}%</b></div>
       <i aria-hidden="true"><b style={{ width: `${percentage}%` }} /></i>
     </div>
-    <ol>
-      {GTM_SETUP_LESSONS.map((lesson, index) => {
-        const isComplete = completedLessons.has(lesson.id)
-        const isActive = lesson.id === activeLessonId
-        return <li key={lesson.id}>
-          <button type="button" className={`${isActive ? 'is-active' : ''} ${isComplete ? 'is-complete' : ''}`} aria-label={`Lesson ${index + 1}: ${lesson.title}${isComplete ? ', complete' : ''}`} aria-current={isActive ? 'step' : undefined} onClick={() => onSelectLesson(lesson.id)}>
-            <span>{isComplete ? '✓' : index + 1}</span>
-            <span><small>{lesson.phase}</small><strong>{lesson.shortTitle}</strong></span>
-          </button>
-        </li>
-      })}
-    </ol>
+    <div className="setup-course-sections">
+      {COURSE_SECTIONS.map((section) => <section key={section.title}>
+        <h2>{section.title}</h2>
+        <ol>
+          {section.lessonIds.map((lessonId) => {
+            const index = GTM_SETUP_LESSONS.findIndex((lesson) => lesson.id === lessonId)
+            const lesson = GTM_SETUP_LESSONS[index]
+            if (!lesson) return null
+            const isComplete = completedLessons.has(lesson.id)
+            const isActive = lesson.id === activeLessonId
+            return <li key={lesson.id}>
+              <button type="button" className={`${isActive ? 'is-active' : ''} ${isComplete ? 'is-complete' : ''}`} aria-label={`Lesson ${index + 1}: ${lesson.title}${isComplete ? ', complete' : ''}`} aria-current={isActive ? 'step' : undefined} onClick={() => onSelectLesson(lesson.id)}>
+                <span>{isComplete ? '✓' : index + 1}</span>
+                <span><strong>{lesson.shortTitle}</strong></span>
+              </button>
+            </li>
+          })}
+        </ol>
+      </section>)}
+    </div>
   </div>
 }
 
@@ -84,7 +98,7 @@ export function GtmSetupLesson({ lesson, lessonIndex, values, completedLessons, 
 
     <div className="setup-lesson-actions">
       <a href={lesson.source} target="_blank" rel="noreferrer">Official instructions ↗</a>
-      <button type="button" className={isComplete ? 'is-complete' : ''} onClick={() => onToggleComplete(lesson)}>{isComplete ? 'Mark incomplete' : 'Mark complete'}</button>
+      <button type="button" aria-label={isComplete ? 'Mark incomplete' : 'Mark complete'} className={isComplete ? 'is-complete' : ''} onClick={() => onToggleComplete(lesson)}>{isComplete ? 'Mark incomplete' : lessonIndex === GTM_SETUP_LESSONS.length - 1 ? 'Complete course' : 'Complete lesson'}</button>
     </div>
 
     <div className="setup-lesson-navigation">

@@ -17,9 +17,10 @@ const OUTPUT_TABS = [
   ['html', 'HTML'],
 ]
 
-function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
+function NoCodeEventBuilder({ draft, onChange, onSave, onTest, onOpenWalkthrough }) {
   const [outputTab, setOutputTab] = useState('dataLayer')
   const [copyNotice, setCopyNotice] = useState('')
+  const [hasGenerated, setHasGenerated] = useState(false)
   const validation = useMemo(() => validateEventDraft(draft), [draft])
   const outputs = useMemo(() => createEventOutputs(draft), [draft])
   const recommended = isRecommendedEvent(draft.eventName)
@@ -27,6 +28,7 @@ function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
   function updateDraft(patch) {
     onChange((current) => ({ ...current, ...patch }))
     setCopyNotice('')
+    setHasGenerated(false)
   }
 
   function updateParameter(id, patch) {
@@ -35,6 +37,7 @@ function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
       parameters: current.parameters.map((parameter) => parameter.id === id ? { ...parameter, ...patch } : parameter),
     }))
     setCopyNotice('')
+    setHasGenerated(false)
   }
 
   function addParameter() {
@@ -42,15 +45,18 @@ function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
       ...current,
       parameters: [...current.parameters, createEmptyParameter(current.parameters)],
     })
+    setHasGenerated(false)
   }
 
   function removeParameter(id) {
     onChange((current) => ({ ...current, parameters: current.parameters.filter((parameter) => parameter.id !== id) }))
+    setHasGenerated(false)
   }
 
   function applyPreset(presetId) {
     onChange(createEventDraft(presetId))
     setCopyNotice('')
+    setHasGenerated(false)
   }
 
   async function copyOutput() {
@@ -64,14 +70,14 @@ function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
     setCopyNotice(`${OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]} copied.`)
   }
 
-  return <section className="event-builder" aria-labelledby="event-builder-heading">
+  return <section className={`event-builder ${hasGenerated ? 'is-generated' : 'is-drafting'}`} aria-labelledby="event-builder-heading">
     <header className="event-builder-heading">
-      <div><span>No-code event builder</span><h2 id="event-builder-heading">Describe the action. Get the implementation.</h2><p>Start with a recommended GA4 event, add safe example parameters, then copy the format your website uses.</p></div>
-      <div className={`event-builder-status ${validation.safe ? 'is-safe' : 'is-review'}`}><i aria-hidden="true" />{validation.safe ? 'Ready to use' : `${validation.issues.length} to review`}</div>
+      <div><span>Event practice</span><h2 id="event-builder-heading">Create your event <span className="workspace-sr-only">— Describe the action. Get the implementation.</span></h2><p>Describe one action first. We’ll reveal the implementation and testing tools when it is ready.</p></div>
+      <div className={`event-builder-status ${validation.safe ? 'is-safe' : 'is-review'}`}><i aria-hidden="true" />{validation.safe ? 'Checks passed' : `${validation.issues.length} to review`}</div>
     </header>
 
     <div className="event-builder-presets">
-      <div><strong>Start with a recommended event</strong><span>Use a custom name only when none of these describe the action.</span></div>
+      <div><strong>Choose an event type</strong><span>Recommended GA4 events come with beginner-friendly defaults.</span></div>
       <div>{RECOMMENDED_EVENT_PRESETS.map((preset) => <button type="button" className={draft.eventName === preset.id ? 'is-active' : ''} onClick={() => applyPreset(preset.id)} key={preset.id}><strong>{preset.label}</strong><small>{preset.description}</small></button>)}<button type="button" className={!recommended ? 'is-active' : ''} onClick={() => applyPreset('custom')}><strong>Custom event</strong><small>Use a clear GA4-style name.</small></button></div>
     </div>
 
@@ -103,18 +109,25 @@ function NoCodeEventBuilder({ draft, onChange, onSave, onOpenWalkthrough }) {
 
         {validation.issues.some((issue) => !issue.rowId) && <div className="event-builder-general-issues">{validation.issues.filter((issue) => !issue.rowId).map((issue) => <p key={issue.message}>{issue.message}</p>)}</div>}
         {validation.privacy.length > 0 && <div className="event-builder-privacy"><strong>Personal information blocked</strong><p>Affected parameters are excluded from every generated output. Remove them or use a safe category such as <code>lead_type: "demo"</code>.</p></div>}
+        <div className="event-builder-generate">
+          <button type="button" onClick={() => setHasGenerated(true)} disabled={!validation.safe}>Generate implementation <span aria-hidden="true">→</span></button>
+          {!validation.safe && <small>Resolve every validation and privacy warning to continue.</small>}
+        </div>
       </div>
 
+      <details className="event-builder-output-shell" open={hasGenerated}>
+        <summary className="workspace-sr-only">Generated implementation</summary>
       <div className="event-builder-output">
         <div className="event-output-tabs" role="tablist" aria-label="Generated event formats">{OUTPUT_TABS.map(([id, label]) => <button type="button" role="tab" aria-selected={outputTab === id} className={outputTab === id ? 'is-active' : ''} onClick={() => { setOutputTab(id); setCopyNotice('') }} key={id}>{label}</button>)}</div>
-        <div className="event-output-heading"><div><span>Generated output</span><strong>{OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]}</strong></div>{recommended ? <b>GA4 recommended</b> : <b className="is-custom">Custom</b>}</div>
+        <div className="event-output-heading"><div><span>✓ Event configured</span><strong>Implementation · {OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]}</strong></div>{recommended ? <b>Recommended</b> : <b className="is-custom">Custom</b>}</div>
         <pre aria-label={`${OUTPUT_TABS.find(([id]) => id === outputTab)?.[1]} output`}><code>{outputs[outputTab]}</code></pre>
         <div className="event-placement-guidance"><strong>Where does this code go?</strong><p>{getPlacementGuidance(draft.action)}</p></div>
-        <div className="event-output-actions"><button type="button" onClick={copyOutput} disabled={!validation.safe}>Copy this output</button><button type="button" onClick={() => onSave(outputs.payload)} disabled={!validation.safe}>Save and open in code editor</button></div>
-        <button className="event-builder-gtm-next" type="button" onClick={onOpenWalkthrough} disabled={!validation.safe}><span>Next step</span><strong>Configure this event in GTM</strong><i aria-hidden="true">→</i></button>
+        <div className="event-output-actions"><button type="button" onClick={copyOutput} disabled={!validation.safe}>Copy code</button><button type="button" onClick={() => onSave(outputs.payload)} disabled={!validation.safe}>Save and open in code editor</button></div>
+        <button className="event-builder-test-next" type="button" onClick={onTest} disabled={!validation.safe}><strong>Test event</strong><i aria-hidden="true">→</i></button>
+        <button className="event-builder-gtm-next" type="button" onClick={onOpenWalkthrough} disabled={!validation.safe}><strong>Configure this event in GTM</strong><i aria-hidden="true">→</i></button>
         {copyNotice && <p className="event-copy-notice" role="status">{copyNotice}</p>}
-        {!validation.safe && <small>Resolve every validation and privacy warning before copying or saving.</small>}
       </div>
+      </details>
     </div>
   </section>
 }

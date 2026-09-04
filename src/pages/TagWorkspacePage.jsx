@@ -28,6 +28,7 @@ import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS } from '../utils/tagRunne
 import { compareWorkspaceToGtm } from '../utils/gtmAudit'
 import { GTM_SETUP_LESSONS, createGtmSetupValues, validateGtmSetupLesson } from '../utils/gtmSetupCourse'
 import { createEventDraft } from '../utils/eventBuilder'
+import './TagWorkspacePage.css'
 
 const CORE_FILES = new Set(['README.md', 'container.json'])
 
@@ -58,6 +59,7 @@ function TagWorkspacePage() {
   const [newFileName, setNewFileName] = useState('')
   const [isCreatingFile, setIsCreatingFile] = useState(false)
   const [workspaceMode, setWorkspaceMode] = useState('builder')
+  const [isGuideOpen, setIsGuideOpen] = useState(false)
   const [eventDraft, setEventDraft] = useState(() => createEventDraft())
   const [completedGtmSteps, setCompletedGtmSteps] = useState(() => new Set())
   const [guideTab, setGuideTab] = useState('course')
@@ -83,6 +85,14 @@ function TagWorkspacePage() {
   const activeLesson = GTM_SETUP_LESSONS[activeLessonIndex]
 
   useEffect(() => () => runnerPortRef.current?.close(), [])
+
+  useEffect(() => {
+    function closeGuide(event) {
+      if (event.key === 'Escape') setIsGuideOpen(false)
+    }
+    window.addEventListener('keydown', closeGuide)
+    return () => window.removeEventListener('keydown', closeGuide)
+  }, [])
 
   useEffect(() => {
     if (!activeRun) return undefined
@@ -145,6 +155,7 @@ function TagWorkspacePage() {
   function selectSetupLesson(lessonId) {
     setActiveLessonId(lessonId)
     setGuideTab('course')
+    setWorkspaceMode('lesson')
     setSetupNotice(null)
   }
 
@@ -362,8 +373,8 @@ function TagWorkspacePage() {
 
   return (
     <main className="tag-workspace-page">
-      <header className="workspace-header"><div><p>Offline-first practice · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM opt-in</span><button className="workspace-exit-button" type="button" onClick={exitWorkspace}>Exit workspace</button></div></header>
-      <div className="workspace-security-strip"><strong>Network-disabled runner</strong><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div>
+      <header className="workspace-header"><div><p>GTM + GA4 learning workspace · {containerId}</p><h1>DataLayer workspace</h1></div><div><span className="workspace-session-state"><i aria-hidden="true" />In memory · {modifiedFiles.size} changed</span><span className="workspace-lock-badge">Live GTM opt-in</span><button className="workspace-exit-button" type="button" onClick={exitWorkspace}>Exit workspace</button></div></header>
+      <details className="workspace-security-strip"><summary><i aria-hidden="true" />Safe offline sandbox <span>View safeguards</span></summary><div><span>Network disabled</span><span>No Google scripts</span><span>No account access</span><span>No persistent storage</span></div></details>
 
       <div className="workspace-grid">
         <aside className="workspace-files workspace-course-sidebar" aria-label="GTM and GA4 setup course">
@@ -379,10 +390,21 @@ function TagWorkspacePage() {
         </aside>
 
         <section className="workspace-main-column" aria-label="Event workspace">
-          <div className="workspace-mode-switch" role="tablist" aria-label="Workspace mode"><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}><span aria-hidden="true">◇</span>No-code builder</button><button type="button" role="tab" aria-selected={workspaceMode === 'gtm'} className={workspaceMode === 'gtm' ? 'is-active' : ''} onClick={() => setWorkspaceMode('gtm')}><span aria-hidden="true">→</span>GTM walkthrough</button><button type="button" role="tab" aria-selected={workspaceMode === 'testing'} className={workspaceMode === 'testing' ? 'is-active' : ''} onClick={() => setWorkspaceMode('testing')}><span aria-hidden="true">◎</span>Test simulator</button><button type="button" role="tab" aria-selected={workspaceMode === 'code'} className={workspaceMode === 'code' ? 'is-active' : ''} onClick={() => setWorkspaceMode('code')}><span aria-hidden="true">{'{ }'}</span>Code editor</button></div>
-          {workspaceMode === 'builder' && <NoCodeEventBuilder draft={eventDraft} onChange={updateEventDraft} onSave={saveBuilderEvent} onOpenWalkthrough={() => setWorkspaceMode('gtm')} />}
+          <header className="workspace-lesson-focus">
+            <div><span>Lesson {activeLessonIndex + 1} of {GTM_SETUP_LESSONS.length}</span><div className="workspace-lesson-title">{activeLesson.title}</div><p>Focus on this one step now. The lesson guide has the exact click path, checkpoint, and common mistakes.</p></div>
+            <div className="workspace-lesson-meta"><span>~5 min</span><button type="button" onClick={() => setIsGuideOpen(true)}>Need help? <strong>View lesson guide →</strong></button></div>
+          </header>
+          <ol className="workspace-learning-flow" aria-label="Lesson flow"><li className="is-active"><span>1</span>Learn</li><li><span>2</span>Configure</li><li><span>3</span>Test</li><li><span>4</span>Continue</li></ol>
+
+          <div className="workspace-primary-switch" role="tablist" aria-label="Primary workspace view"><button type="button" role="tab" aria-selected={workspaceMode === 'lesson'} className={workspaceMode === 'lesson' ? 'is-active' : ''} onClick={() => setWorkspaceMode('lesson')}>Current lesson</button><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}>Build an event</button></div>
+          <details className="workspace-advanced-launcher">
+            <summary>Advanced tools <span>Runner, GTM, code and live connections</span></summary>
+            <div className="workspace-mode-switch" role="tablist" aria-label="Workspace mode"><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}><span aria-hidden="true">◇</span>No-code builder</button><button type="button" role="tab" aria-selected={workspaceMode === 'gtm'} className={workspaceMode === 'gtm' ? 'is-active' : ''} onClick={() => setWorkspaceMode('gtm')}><span aria-hidden="true">→</span>GTM walkthrough</button><button type="button" role="tab" aria-selected={workspaceMode === 'testing'} className={workspaceMode === 'testing' ? 'is-active' : ''} onClick={() => setWorkspaceMode('testing')}><span aria-hidden="true">◎</span>Test simulator</button><button type="button" role="tab" aria-selected={workspaceMode === 'code'} className={workspaceMode === 'code' ? 'is-active' : ''} onClick={() => setWorkspaceMode('code')}><span aria-hidden="true">{'{ }'}</span>Code editor</button></div>
+          </details>
+          {workspaceMode === 'lesson' && <section className="workspace-current-lesson" aria-label={`Lesson ${activeLessonIndex + 1}: ${activeLesson.title}`}><GtmSetupLesson lesson={activeLesson} lessonIndex={activeLessonIndex} values={setupValues} completedLessons={completedSetupLessons} notice={setupNotice} onChange={updateSetupValue} onToggleComplete={toggleSetupLesson} onSelectLesson={selectSetupLesson} /></section>}
+          {workspaceMode === 'builder' && <NoCodeEventBuilder draft={eventDraft} onChange={updateEventDraft} onSave={saveBuilderEvent} onTest={() => setWorkspaceMode('testing')} onOpenWalkthrough={() => setWorkspaceMode('gtm')} />}
           {workspaceMode === 'gtm' && <GtmConfigurationWalkthrough draft={eventDraft} completedSteps={completedGtmSteps} onToggleStep={toggleGtmStep} onBack={() => setWorkspaceMode('builder')} />}
-          {workspaceMode === 'testing' && <InteractiveTestingLab key={`${eventDraft.eventName}:${eventDraft.parameters.map((parameter) => `${parameter.name}:${parameter.value}`).join('|')}`} draft={eventDraft} measurementId={setupValues.measurementId} initialUrl={setupValues.previewUrl || setupValues.streamUrl} />}
+          {workspaceMode === 'testing' && <InteractiveTestingLab key={`${eventDraft.eventName}:${eventDraft.parameters.map((parameter) => `${parameter.name}:${parameter.value}`).join('|')}`} draft={eventDraft} measurementId={setupValues.measurementId} initialUrl={setupValues.previewUrl || setupValues.streamUrl} onConfigure={() => setWorkspaceMode('gtm')} />}
           {workspaceMode === 'code' && <section className="workspace-editor" aria-label="File editor">
             <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
             <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
@@ -394,13 +416,15 @@ function TagWorkspacePage() {
           </section>}
         </section>
 
-        <aside className="workspace-guide" aria-label="Contextual GTM and GA4 guide">
-          <div className="workspace-guide-heading"><div><h2>GTM + GA4 guide</h2></div><span>{guideTab === 'course' ? `${completedSetupLessons.size}/10` : `${completedGuideSteps}/4`}</span></div>
+        {isGuideOpen && <button className="workspace-guide-backdrop" type="button" aria-label="Close lesson guide" onClick={() => setIsGuideOpen(false)} />}
+        <aside className={`workspace-guide ${isGuideOpen ? 'is-open' : ''}`} aria-label="Contextual GTM and GA4 guide">
+          <div className="workspace-guide-heading"><div><span>Contextual help</span><h2>GTM + GA4 guide</h2></div><div><span>{guideTab === 'course' ? `${completedSetupLessons.size}/10` : `${completedGuideSteps}/4`}</span><button type="button" aria-label="Close guide" onClick={() => setIsGuideOpen(false)}>×</button></div></div>
           <div className="workspace-guide-tabs" role="tablist" aria-label="Guide views">
             {[['course','Setup'],['context','File'],['flow','Flow'],['examples','Examples'],['reference','Terms']].map(([id, label]) => <button type="button" role="tab" aria-selected={guideTab === id} className={guideTab === id ? 'is-active' : ''} onClick={() => setGuideTab(id)} key={id}>{label}</button>)}
           </div>
 
-          {guideTab === 'course' && <GtmSetupLesson lesson={activeLesson} lessonIndex={activeLessonIndex} values={setupValues} completedLessons={completedSetupLessons} notice={setupNotice} onChange={updateSetupValue} onToggleComplete={toggleSetupLesson} onSelectLesson={selectSetupLesson} />}
+          {guideTab === 'course' && workspaceMode !== 'lesson' && <GtmSetupLesson lesson={activeLesson} lessonIndex={activeLessonIndex} values={setupValues} completedLessons={completedSetupLessons} notice={setupNotice} onChange={updateSetupValue} onToggleComplete={toggleSetupLesson} onSelectLesson={selectSetupLesson} />}
+          {guideTab === 'course' && workspaceMode === 'lesson' && <div className="workspace-guide-panel"><h3>{activeLesson.title}</h3><p>The full lesson is open in the main workspace. Use this drawer for supporting references, examples, and terminology while you work.</p><button type="button" className="workspace-guide-return" onClick={() => setIsGuideOpen(false)}>Return to lesson</button></div>}
 
           {guideTab === 'context' && <div className="workspace-guide-panel" role="tabpanel">
             <div className="workspace-guide-progress"><div><strong>Practice progress</strong><span>{completedGuideSteps * 25}%</span></div><i><b style={{ width: `${completedGuideSteps * 25}%` }} /></i><ul>{guideProgress.map((step) => <li className={step.complete ? 'is-complete' : ''} key={step.label}><span aria-hidden="true">{step.complete ? '✓' : '○'}</span>{step.label}</li>)}</ul></div>
@@ -427,6 +451,9 @@ function TagWorkspacePage() {
           </div>}
         </aside>
 
+        <details className="workspace-advanced-tools">
+          <summary><span>Advanced tools</span><small>Simulation runner, run history, Live GTM and read-only API</small></summary>
+          <div className="workspace-advanced-tools-content">
         <section className="workspace-runner" aria-labelledby="disposable-runner-heading">
           <div className="workspace-runner-controls"><div className="workspace-runner-title"><div><h2 id="disposable-runner-heading">Disposable simulation runner</h2></div><span className={`is-${runnerStatus}`}><i aria-hidden="true" />{activeRun ? runnerStatus : runnerStatus === 'idle' ? 'Ready' : runnerStatus}</span></div><p aria-live="polite">{notice || 'A fresh network-disabled sandbox is created for one validated event, then destroyed.'}</p><div className="workspace-runner-actions"><button type="button" onClick={runEvent} disabled={!selectedFile.startsWith('events/') || !validation.safeToRun || Boolean(activeRun)}>Run in fresh sandbox</button>{activeRun && <button className="is-cancel" type="button" onClick={cancelRun}>Cancel and dispose</button>}</div><div className="workspace-runner-rules"><span>1 payload</span><span>0 network</span><span>4s timeout</span><span>Auto-dispose</span></div></div>
           <div className={`workspace-runner-process is-${runnerStatus}`}>
@@ -436,6 +463,8 @@ function TagWorkspacePage() {
         </section>
         <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
         <GtmApiPanel containerId={containerId} files={files} measurementId={setupValues.measurementId} onImportSnapshot={importGtmSnapshot} />
+          </div>
+        </details>
       </div>
       <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setWorkspaceMode('builder'); setEventDraft(createEventDraft()); setCompletedGtmSteps(new Set()); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace, builder, and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>

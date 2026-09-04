@@ -11,7 +11,7 @@ const REAL_TESTING_STEPS = [
   { id: 'publish', title: 'Publish only after verification', detail: 'Once every check passes, return to GTM and select Submit → Publish and Create Version → Publish.' },
 ]
 
-function InteractiveTestingLab({ draft, measurementId = '', initialUrl = '' }) {
+function InteractiveTestingLab({ draft, measurementId = '', initialUrl = '', onConfigure }) {
   const scenarios = useMemo(() => createInteractiveScenarios(draft), [draft])
   const runCounter = useRef(0)
   const [selectedScenarioId, setSelectedScenarioId] = useState(scenarios.find((scenario) => scenario.isGeneratedEvent)?.id || 'form')
@@ -77,10 +77,13 @@ function InteractiveTestingLab({ draft, measurementId = '', initialUrl = '' }) {
           <article className="is-match"><header><span>02</span><div><small>GTM</small><strong>Trigger matched</strong></div><b>YES</b></header><dl><div><dt>Trigger</dt><dd>{result.pipeline.trigger.name}</dd></div><div><dt>Condition</dt><dd>{result.pipeline.trigger.condition}</dd></div><div><dt>Tag fired</dt><dd>{result.pipeline.tag}</dd></div></dl></article>
           <i aria-hidden="true">↓</i>
           <article><header><span>03</span><div><small>Google Analytics</small><strong>GA4 payload produced</strong></div></header><pre><code>{JSON.stringify(result.pipeline.ga4Payload, null, 2)}</code></pre></article>
+          <button className="testing-configure-next" type="button" onClick={onConfigure}>Configure in GTM <span aria-hidden="true">→</span></button>
         </div>}
       </section>
     </div>
 
+    <details className="testing-advanced">
+      <summary>Advanced testing <span>Practice history and Tag Assistant checklist</span></summary>
     {runs.length > 0 && <div className="testing-run-history"><strong>Practice history</strong><ol>{runs.map((run) => <li key={run.id}><span>{run.id}</span><code>{run.pipeline.eventName}</code><b>{run.pipeline.trigger.name} matched</b></li>)}</ol></div>}
 
     <section className="real-testing-checklist" aria-labelledby="real-testing-heading">
@@ -92,6 +95,7 @@ function InteractiveTestingLab({ draft, measurementId = '', initialUrl = '' }) {
       })}</ol>
       <footer><div><strong>{completedSteps.size === 7 ? 'Verified and ready to publish' : 'Publishing remains locked until verification is complete'}</strong><span>In GTM, publishing is Submit → Publish and Create Version → Publish.</span></div><nav aria-label="Official Google testing documentation"><a href="https://support.google.com/tagmanager/answer/6107056?hl=en" target="_blank" rel="noreferrer">Preview and debug ↗</a><a href="https://support.google.com/tagmanager/answer/6107163?hl=en" target="_blank" rel="noreferrer">Publishing containers ↗</a></nav></footer>
     </section>
+    </details>
   </section>
 }
 
