@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom'
 import GtmApiPanel from '../components/GtmApiPanel'
 import { GtmSetupChecklist, GtmSetupLesson } from '../components/GtmSetupCourse'
 import LiveGtmPanel from '../components/LiveGtmPanel'
+import NoCodeEventBuilder from '../components/NoCodeEventBuilder'
 import {
   WORKSPACE_MAX_FILES,
   createStarterWorkspace,
@@ -23,6 +24,7 @@ import {
 import { DISPOSABLE_RUNNER_DOCUMENT, RUNNER_TIMEOUT_MS } from '../utils/tagRunner'
 import { compareWorkspaceToGtm } from '../utils/gtmAudit'
 import { GTM_SETUP_LESSONS, createGtmSetupValues, validateGtmSetupLesson } from '../utils/gtmSetupCourse'
+import { createEventDraft } from '../utils/eventBuilder'
 
 const CORE_FILES = new Set(['README.md', 'container.json'])
 
@@ -52,6 +54,8 @@ function TagWorkspacePage() {
   const [selectedFile, setSelectedFile] = useState('events/page_view.json')
   const [newFileName, setNewFileName] = useState('')
   const [isCreatingFile, setIsCreatingFile] = useState(false)
+  const [workspaceMode, setWorkspaceMode] = useState('builder')
+  const [eventDraft, setEventDraft] = useState(() => createEventDraft())
   const [guideTab, setGuideTab] = useState('course')
   const [activeLessonId, setActiveLessonId] = useState(GTM_SETUP_LESSONS[0].id)
   const [setupValues, setSetupValues] = useState(() => createGtmSetupValues(containerId))
@@ -122,6 +126,7 @@ function TagWorkspacePage() {
 
   function selectFile(name) {
     setSelectedFile(name)
+    setWorkspaceMode('code')
     setGuideTab('context')
     setCursor({ line: 1, column: 1 })
     setNotice('')
@@ -172,6 +177,8 @@ function TagWorkspacePage() {
     if (files[name]) return setNotice('That file already exists.')
     setFiles((current) => ({ ...current, [name]: createWorkspaceFileContent(name) }))
     setSelectedFile(name)
+    setWorkspaceMode('code')
+    setGuideTab('context')
     setNewFileName('')
     setIsCreatingFile(false)
     setNotice(`${name} created in memory.`)
@@ -279,6 +286,32 @@ function TagWorkspacePage() {
     setNotice('Run cancelled. The sandbox was destroyed.')
   }
 
+  function saveBuilderEvent(payload) {
+    if (Object.keys(files).length >= WORKSPACE_MAX_FILES) {
+      setNotice('The workspace is limited to 40 files. Remove a file before saving this event.')
+      return
+    }
+    const baseName = String(payload.event || 'custom_event').replace(/[^A-Za-z0-9_]/g, '_').slice(0, 40) || 'custom_event'
+    let fileName = `events/${baseName}.json`
+    let copyNumber = 1
+    while (files[fileName]) {
+      fileName = `events/${baseName}.builder${copyNumber === 1 ? '' : `-${copyNumber}`}.json`
+      copyNumber += 1
+    }
+    const fileContent = `${JSON.stringify(payload, null, 2)}\n`
+    const result = validateWorkspaceFile(fileName, fileContent)
+    if (!result.safeToRun) {
+      setNotice('The generated event did not pass the workspace safety checks and was not saved.')
+      return
+    }
+    setFiles((current) => ({ ...current, [fileName]: fileContent }))
+    setSelectedFile(fileName)
+    setWorkspaceMode('code')
+    setGuideTab('context')
+    setCursor({ line: 1, column: 1 })
+    setNotice(`${fileName} created from the no-code builder.`)
+  }
+
   function importGtmSnapshot(snapshot) {
     const comparison = compareWorkspaceToGtm(files, snapshot)
     const safeSnapshot = {
@@ -293,6 +326,7 @@ function TagWorkspacePage() {
     }
     setFiles((current) => ({ ...current, 'container.json': `${JSON.stringify(safeSnapshot, null, 2)}\n` }))
     setSelectedFile('container.json')
+    setWorkspaceMode('code')
     setGuideTab('context')
     setCursor({ line: 1, column: 1 })
     setNotice(`${snapshot.container.publicId} audit imported: ${comparison.matchedEventNames.length} local event${comparison.matchedEventNames.length === 1 ? '' : 's'} matched. No OAuth token or raw tag code was copied.`)
@@ -320,14 +354,17 @@ function TagWorkspacePage() {
           </details>
         </aside>
 
-        <section className="workspace-editor" aria-label="File editor">
-          <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
-          <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
-          <div className="workspace-editor-status"><span className={validation.valid ? 'is-valid' : 'is-invalid'}>{validation.valid ? '● Valid' : '● Invalid'}</span><span>{selectedFile.endsWith('.json') ? 'JSON' : 'Markdown'}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>{content.length.toLocaleString()} chars</span><span>{byteSize.toLocaleString()} bytes</span></div>
-          <div className={`workspace-validation ${validation.safeToRun ? 'is-valid' : 'is-invalid'}`}>
-            <div className="workspace-validation-summary"><div><strong>{validation.safeToRun ? 'Safe to run' : validation.valid ? 'Review required' : 'Blocked'}</strong><span>{validation.schemaName}</span></div><div><span><b>{validation.errors.length}</b> errors</span><span><b>{validation.warnings.length}</b> warnings</span></div></div>
-            {validation.issues.length ? <ul className="workspace-issue-list">{validation.issues.map((issue) => <li className={`is-${issue.severity}`} key={`${issue.code}-${issue.path}`}><span className={`workspace-issue-category is-${issue.category}`}>{issue.category}</span><code>{issue.path}</code><p>{issue.message}</p></li>)}</ul> : <span className="workspace-validation-clear">✓ Schema, dangerous keys, credentials, and personal data checked.</span>}
-          </div>
+        <section className="workspace-main-column" aria-label="Event workspace">
+          <div className="workspace-mode-switch" role="tablist" aria-label="Workspace mode"><button type="button" role="tab" aria-selected={workspaceMode === 'builder'} className={workspaceMode === 'builder' ? 'is-active' : ''} onClick={() => setWorkspaceMode('builder')}><span aria-hidden="true">◇</span>No-code builder</button><button type="button" role="tab" aria-selected={workspaceMode === 'code'} className={workspaceMode === 'code' ? 'is-active' : ''} onClick={() => setWorkspaceMode('code')}><span aria-hidden="true">{'{ }'}</span>Code editor</button></div>
+          {workspaceMode === 'builder' ? <NoCodeEventBuilder draft={eventDraft} onChange={setEventDraft} onSave={saveBuilderEvent} /> : <section className="workspace-editor" aria-label="File editor">
+            <div className="workspace-editor-toolbar"><div><span className="workspace-file-tab"><i aria-hidden="true">{selectedFile.endsWith('.json') ? '{ }' : 'M↓'}</i>{selectedFile}{modifiedFiles.has(selectedFile) && <b aria-label="Modified">●</b>}</span></div><div><button type="button" onClick={formatJson} disabled={!selectedFile.endsWith('.json')} title="Format JSON (Ctrl/⌘ + Shift + F)">Format</button><button type="button" onClick={copyContent}>Copy</button><button type="button" onClick={duplicateFile}>Duplicate</button><button type="button" onClick={downloadFile}>Download</button>{!CORE_FILES.has(selectedFile) && <button className="is-danger" type="button" onClick={deleteFile}>Delete</button>}</div></div>
+            <div className="workspace-code-shell"><div ref={lineNumbersRef} className="workspace-line-numbers" aria-hidden="true">{content.split('\n').map((_, index) => <span key={index}>{index + 1}</span>)}</div><textarea ref={editorRef} aria-label={`Edit ${selectedFile}`} value={content} onChange={(event) => { setFiles((current) => ({ ...current, [selectedFile]: event.target.value })); updateCursor(event.target) }} onClick={(event) => updateCursor(event.currentTarget)} onKeyUp={(event) => updateCursor(event.currentTarget)} onKeyDown={handleEditorKeyDown} onScroll={(event) => { if (lineNumbersRef.current) lineNumbersRef.current.scrollTop = event.currentTarget.scrollTop }} spellCheck="false" /></div>
+            <div className="workspace-editor-status"><span className={validation.valid ? 'is-valid' : 'is-invalid'}>{validation.valid ? '● Valid' : '● Invalid'}</span><span>{selectedFile.endsWith('.json') ? 'JSON' : 'Markdown'}</span><span>Ln {cursor.line}, Col {cursor.column}</span><span>{content.length.toLocaleString()} chars</span><span>{byteSize.toLocaleString()} bytes</span></div>
+            <div className={`workspace-validation ${validation.safeToRun ? 'is-valid' : 'is-invalid'}`}>
+              <div className="workspace-validation-summary"><div><strong>{validation.safeToRun ? 'Safe to run' : validation.valid ? 'Review required' : 'Blocked'}</strong><span>{validation.schemaName}</span></div><div><span><b>{validation.errors.length}</b> errors</span><span><b>{validation.warnings.length}</b> warnings</span></div></div>
+              {validation.issues.length ? <ul className="workspace-issue-list">{validation.issues.map((issue) => <li className={`is-${issue.severity}`} key={`${issue.code}-${issue.path}`}><span className={`workspace-issue-category is-${issue.category}`}>{issue.category}</span><code>{issue.path}</code><p>{issue.message}</p></li>)}</ul> : <span className="workspace-validation-clear">✓ Schema, dangerous keys, credentials, and personal data checked.</span>}
+            </div>
+          </section>}
         </section>
 
         <aside className="workspace-guide" aria-label="Contextual GTM and GA4 guide">
@@ -373,7 +410,7 @@ function TagWorkspacePage() {
         <LiveGtmPanel containerId={containerId} payload={selectedFile.startsWith('events/') ? validation.value : null} canSend={selectedFile.startsWith('events/') && validation.safeToRun} selectedFile={selectedFile} />
         <GtmApiPanel containerId={containerId} onImportSnapshot={importGtmSnapshot} />
       </div>
-      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
+      <footer className="workspace-footer"><button type="button" onClick={() => { runnerPortRef.current?.close(); runnerPortRef.current = null; setActiveRun(null); setRunnerStatus('idle'); setFiles(starterFiles); setSelectedFile('events/page_view.json'); setWorkspaceMode('builder'); setEventDraft(createEventDraft()); setGuideTab('course'); setActiveLessonId(GTM_SETUP_LESSONS[0].id); setSetupValues(createGtmSetupValues(containerId)); setCompletedSetupLessons(new Set()); setSetupNotice(null); setOutput([]); setNotice('Workspace, builder, and course reset.') }}>Reset project</button><span>Everything is cleared when this window closes.</span></footer>
     </main>
   )
 }

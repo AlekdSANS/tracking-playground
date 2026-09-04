@@ -786,6 +786,34 @@ test('guides a beginner through validated GTM and GA4 setup lessons', async () =
   expect(screen.getByRole('status')).toHaveTextContent(/lesson 3 complete/i)
 })
 
+test('builds a recommended event without code and keeps the code editor optional', async () => {
+  const user = userEvent.setup()
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
+
+  expect(await screen.findByRole('heading', { name: /describe the action.*get the implementation/i })).toBeInTheDocument()
+  expect(screen.getByRole('tab', { name: /no-code builder/i })).toHaveAttribute('aria-selected', 'true')
+  expect(screen.queryByRole('region', { name: /file editor/i })).not.toBeInTheDocument()
+
+  await user.click(screen.getByRole('button', { name: /sign up.*new account/i }))
+  expect(screen.getByLabelText(/^event name$/i)).toHaveValue('sign_up')
+  expect(screen.getByLabelText(/when should it happen/i)).toHaveValue('Registration succeeds')
+  await user.click(screen.getByRole('tab', { name: /^react$/i }))
+  expect(screen.getByLabelText(/react output/i)).toHaveTextContent(/function trackSignUp/)
+  expect(screen.getByText(/after account creation succeeds/i)).toBeInTheDocument()
+
+  const personalCheckbox = screen.getByLabelText(/this value could contain personal information/i)
+  await user.click(personalCheckbox)
+  expect(screen.getByText(/personal information blocked/i)).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: /save and open in code editor/i })).toBeDisabled()
+  await user.click(personalCheckbox)
+  await user.click(screen.getByRole('button', { name: /save and open in code editor/i }))
+
+  const editor = screen.getByRole('textbox', { name: /edit events\/sign_up\.json/i })
+  expect(editor.value).toContain('"event": "sign_up"')
+  expect(editor.value).toContain('"method": "email"')
+  expect(screen.getByRole('tab', { name: /code editor/i })).toHaveAttribute('aria-selected', 'true')
+})
+
 test('defines a network-disabled single-use runner contract', () => {
   expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/connect-src 'none'/)
   expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/worker-src 'none'/)

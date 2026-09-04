@@ -78,6 +78,7 @@ describe('workspace entry isolation', () => {
   test('does not persist virtual-file edits to browser storage', async () => {
     const storageSpy = vi.spyOn(Storage.prototype, 'setItem')
     await renderApp('/tag-workspace#container=GTM-SAFE123')
+    fireEvent.click(screen.getByRole('tab', { name: /code editor/i }))
     fireEvent.change(screen.getByRole('textbox', { name: /edit events\/page_view.json/i }), {
       target: { value: '{"event":"edited_event"}' },
     })
