@@ -168,6 +168,8 @@ The center workspace opens in a no-code event builder with presets for `generate
 
 The GTM walkthrough turns the generated event into a dynamic ten-step configuration checklist. It gives the exact Variables, Triggers, and Tags click paths; generates Data Layer Variable, Custom Event trigger, and GA4 Event tag names; maps each website parameter to its GTM variable and GA4 field; and keeps completion progress in the current browser window.
 
+The offline Test Simulator adds a small fake website for button clicks, successful form submissions, and completed purchases. Each action exposes the resulting `dataLayer.push()`, exact-match Custom Event trigger, fired GA4 Event tag, and simulated GA4 payload without making a network request. A separate seven-step checklist covers deployed-site testing in Tag Assistant and GA4 DebugView, and keeps the publish step locked until the preceding verification checks are complete.
+
 The API connection uses only the `tagmanager.readonly` OAuth scope. Access tokens are encrypted in HTTP-only cookies, limited to ten minutes, and never copied into the virtual workspace. Enable the Tag Manager API in Google Cloud, register `GTM_OAUTH_REDIRECT_URI` exactly, and use `npx vercel dev` when testing the API locally.
 
 ## GTM setup

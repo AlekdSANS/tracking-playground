@@ -847,6 +847,42 @@ test('walks a generated event through the exact GTM configuration and parameter 
   expect(screen.getByLabelText(/0 of 10 GTM steps complete/i)).toBeInTheDocument()
 })
 
+test('simulates button, form, and purchase events before real Tag Assistant testing', async () => {
+  const user = userEvent.setup()
+  renderAdminApp(['/tag-workspace#container=GTM-TEST99'])
+
+  await screen.findByRole('heading', { name: /describe the action.*get the implementation/i })
+  await user.click(screen.getByRole('tab', { name: /test simulator/i }))
+
+  const lab = screen.getByRole('region', { name: /watch an event travel from website to ga4/i })
+  expect(within(lab).getByText(/0 network requests/i)).toBeInTheDocument()
+  const publishStep = within(lab).getByText(/publish only after verification/i).closest('li')
+  expect(within(publishStep).getByRole('button', { name: /mark complete/i })).toBeDisabled()
+
+  await user.click(within(lab).getByRole('tab', { name: /button click/i }))
+  await user.click(within(lab).getByRole('button', { name: /click demo button/i }))
+  expect(within(lab).getByText('dataLayer.push()', { selector: 'strong' })).toBeInTheDocument()
+  expect(within(lab).getAllByText(/CE - button_click/).length).toBeGreaterThan(0)
+  expect(within(lab).getByText(/GA4 payload produced/i)).toBeInTheDocument()
+
+  await user.click(within(lab).getByRole('tab', { name: /form success/i }))
+  await user.click(within(lab).getByRole('button', { name: /submit fake form/i }))
+  expect(within(lab).getAllByText(/CE - generate_lead/).length).toBeGreaterThan(0)
+
+  await user.click(within(lab).getByRole('tab', { name: /purchase complete/i }))
+  await user.click(within(lab).getByRole('button', { name: /complete fake purchase/i }))
+  expect(within(lab).getAllByText(/GA4 Event - purchase/).length).toBeGreaterThan(0)
+  expect(within(lab).getAllByRole('listitem').length).toBeGreaterThanOrEqual(10)
+
+  const realChecklist = within(lab).getByRole('region', { name: /test with tag assistant before publishing/i })
+  const realSteps = within(realChecklist).getAllByRole('listitem')
+  await user.type(within(realChecklist).getByRole('textbox', { name: /deployed website url/i }), 'https://tracking-playground-nu.vercel.app/')
+  for (const step of realSteps.slice(0, 6)) await user.click(within(step).getByRole('button', { name: /mark complete/i }))
+  expect(within(realSteps[6]).getByRole('button', { name: /mark complete/i })).toBeEnabled()
+  await user.click(within(realSteps[6]).getByRole('button', { name: /mark complete/i }))
+  expect(within(realChecklist).getByLabelText(/7 of 7 real testing steps complete/i)).toBeInTheDocument()
+})
+
 test('defines a network-disabled single-use runner contract', () => {
   expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/connect-src 'none'/)
   expect(DISPOSABLE_RUNNER_DOCUMENT).toMatch(/worker-src 'none'/)
